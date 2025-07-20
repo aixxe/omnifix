@@ -1,0 +1,13 @@
+; llvm-dlltool -d lib/avs2-core.def -l lib/avs2-core.lib
+LIBRARY "avs2-core.dll"
+
+EXPORTS
+    fs_open @79 NONAME
+    fs_read @82 NONAME
+    fs_close @86 NONAME
+    fs_fstat @99 NONAME
+    property_node_create @163 NONAME
+    property_node_refer @176 NONAME
+    log_body_warning @380 NONAME
+    log_body_info @381 NONAME
+    log_body_misc @382 NONAME
