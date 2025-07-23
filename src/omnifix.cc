@@ -656,24 +656,13 @@ auto init(std::uint8_t* module) -> int
         bm2dx->path.filename().string(),
         std::bit_cast<std::uintptr_t>(bm2dx->base));
 
-    auto const argv = modules::argv();
     auto const region = bm2dx->region();
-
-    auto options = std::unordered_map<std::string, bool> {
-        { "--omnifix-disable-omnimix", false },
-        { "--omnifix-enable-unlock-all", false },
-        { "--omnifix-disable-boot-text", false },
-        { "--omnifix-disable-xrpc-meta", false },
-        { "--omnifix-disable-clear-rate-fix", false },
-        { "--omnifix-enable-banner-hook", false },
-    };
-
-    for (auto&& [option, enabled]: options)
-        enabled = std::ranges::contains(argv, option);
+    auto const [flags, options] = modules::argv();
 
     mdb_path = find_music_data_bin_path(region);
 
     if (!options["--omnifix-disable-omnimix"])
+    if (!flags.contains("omnifix-disable-omnimix"))
     {
         setup_omnimix_path_patch(region);
         setup_revision_patch(region);
@@ -681,22 +670,22 @@ auto init(std::uint8_t* module) -> int
         setup_music_data_buffer_patch(region);
     }
 
-    if (options["--omnifix-enable-unlock-all"])
+    if (flags.contains("omnifix-enable-unlock-all"))
         setup_chart_unlock_patch(region);
 
-    if (!options["--omnifix-disable-boot-text"])
+    if (!flags.contains("omnifix-disable-boot-text"))
         setup_boot_text_hook(region);
 
-    if (!options["--omnifix-disable-xrpc-meta"])
+    if (!flags.contains("omnifix-disable-xrpc-meta"))
     {
         setup_xrpc_services_get_hook(region);
         setup_xrpc_music_reg_hook(region);
     }
 
-    if (!options["--omnifix-disable-clear-rate-fix"])
+    if (!flags.contains("omnifix-disable-clear-rate-fix"))
         setup_clear_rate_hook(region);
 
-    if (options["--omnifix-enable-banner-hook"])
+    if (flags.contains("omnifix-enable-banner-hook"))
         setup_song_banner_hook(region);
 
     for (auto&& patch: patches)

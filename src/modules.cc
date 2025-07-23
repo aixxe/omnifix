@@ -9,27 +9,71 @@
 using namespace omnifix;
 
 /**
- * Retrieves the command line arguments for this process.
+ * Converts a wide string into a UTF-8 string.
  *
- * Our needs are very basic at the moment, so we only split at spaces and don't
- * bother handling quotes or arguments with values.
- *
- * @return Space-delimited vector of command line arguments.
+ * @param input UTF-16 wide string to convert to UTF-8.
+ * @return Converted narrow string, or an empty string on failure.
  */
-auto modules::argv() -> std::vector<std::string>
+auto wide2narrow(const std::wstring_view input) -> std::string
+{
+    if (input.empty())
+        return {};
+
+    auto const wide_size = static_cast<int>(input.size());
+    auto const narrow_size = WideCharToMultiByte(CP_UTF8, 0,
+        input.data(), wide_size, nullptr, 0, nullptr, nullptr);
+
+    if (narrow_size == 0)
+        return {};
+
+    auto buffer = std::string(narrow_size, '\0');
+    auto const result = WideCharToMultiByte(CP_UTF8, 0, input.data(),
+        wide_size, buffer.data(), narrow_size, nullptr, nullptr);
+
+    if (result == 0)
+        return {};
+
+    return buffer;
+}
+
+/**
+ * Performs basic command-line argument parsing for '--' prefixed options.
+ *
+ * @return Pair containing boolean flags and options with string values.
+ */
+auto modules::argv() -> parsed_argv
 {
     auto const peb = NtCurrentTeb()->ProcessEnvironmentBlock;
-
-    auto argv = std::wstring {
+    auto const cmdline = std::wstring {
         peb->ProcessParameters->CommandLine.Buffer,
         peb->ProcessParameters->CommandLine.Length / sizeof(wchar_t)
     };
 
-    return argv
-        | std::ranges::views::split(L' ')
-        | std::ranges::views::transform([] (auto&& v)
-            { return std::string { v.begin(), v.end() }; })
+    auto flags = flag_args {};
+    auto options = option_args {};
+
+    auto const args = wide2narrow(cmdline)
+        | std::views::split(' ')
         | std::ranges::to<std::vector<std::string>>();
+
+    if (args.size() < 2)
+        return { flags, options };
+
+    for (auto i = 1; i < args.size(); ++i)
+    {
+        if (!args[i].starts_with("--"))
+            continue;
+
+        auto const arg = args[i].substr(2);
+        auto const value = arg.find('=');
+
+        if (value == std::string_view::npos)
+            flags[arg] = true;
+        else
+            options[arg.substr(0, value)] = arg.substr(value + 1);
+    }
+
+    return { flags, options };
 }
 
 /**
