@@ -102,6 +102,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-disable-boot-text`
 > Disables the omnifix version text from being displayed on the boot screen
 
+> ##### `--omnifix-enable-banner-hook`
+> Display Omnimix exclusive charts with a distinct banner color in music select
+
 ## Network validation
 
 By default, omnifix will append additional metadata to the initial services request and new score submissions

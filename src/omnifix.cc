@@ -2,9 +2,11 @@
 #include <format>
 #include <windows.h>
 #include <picosha2.h>
+#include <unordered_set>
 #include <safetyhook.hpp>
 
 #include "avs2.h"
+#include "bm2dx.h"
 #include "memory.h"
 #include "modules.h"
 #include "exceptions.h"
@@ -365,6 +367,133 @@ auto setup_clear_rate_hook(auto&& bm2dx)
 }
 
 /**
+ * Iterate over music data entries and construct a map of charts.
+ */
+template <typename header_type>
+auto iterate_mdb_entries(auto&& buffer)
+{
+    using index_type = typename header_type::index_type;
+    using chart_map = std::unordered_map<int, std::array<std::uint8_t, 10>>;
+
+    auto const header = std::bit_cast<const header_type*>(buffer.data());
+
+    auto constexpr index_size = sizeof(index_type);
+    auto constexpr header_size = sizeof(header_type);
+
+    auto const directory = reinterpret_cast<const index_type*>
+        (buffer.data() + header_size);
+
+    auto const entry_first = header_size + header->max_entries * index_size;
+    auto const entry_size = (buffer.size() - entry_first) / header->entries;
+
+    auto seen = std::unordered_set<int> {};
+    auto charts = chart_map {};
+
+    for (auto id = 0; id < header->max_entries; ++id)
+    {
+        auto const index = directory[id];
+
+        if (index == -1 || seen.contains(index))
+            continue;
+
+        seen.insert(index);
+
+        auto const entry = entry_first + index * entry_size;
+        auto const ratings = buffer.data() + entry + header_type::level_offset;
+
+        std::copy_n(ratings, charts[id].size(), charts[id].data());
+    }
+
+    return std::make_pair(header->version, charts);
+}
+
+/**
+ * Read and parse a music data file from any supported version.
+ */
+auto parse_music_data_file(auto&& path)
+{
+    auto const buffer = avs2::file::read(path);
+    auto const header = reinterpret_cast<const bm2dx::mdb*>(buffer.data());
+
+    if (buffer.empty() || std::memcmp(header->magic, "IIDX", 4) != 0)
+        throw error { "failed to read music data file '{}'", path };
+
+    if (header->version == 31)
+        return iterate_mdb_entries<bm2dx::mdb_v31>(buffer);
+    if (header->version == 32)
+        return iterate_mdb_entries<bm2dx::mdb_v32>(buffer);
+
+    throw error { "unsupported version {} in '{}'", header->version, path };
+}
+
+/**
+ * Display Omnimix charts using a distinct song bar texture.
+ */
+auto setup_song_banner_hook(auto&& bm2dx)
+{
+    avs2::log::info("enabling song banner hook");
+
+    // Color Omnimix charts using the "listb_lightning" bar texture.
+    auto constexpr omnimix_bar_style = 2;
+
+    // Build paths to both original and modified music data files.
+    auto path_original = std::string { "/data/info/#/music_data.bin" };
+    auto path_modified = std::string { "/data/info/#/music_omni.bin" };
+
+    // Set the `0` or `1` in each path, which alternates each style.
+    path_original.at(11) = mdb_path.at(11);
+    path_modified.at(11) = mdb_path.at(11);
+
+    auto [ver_original, mdb_original] = parse_music_data_file(path_original);
+    auto [ver_modified, mdb_modified] = parse_music_data_file(path_modified);
+
+    if (ver_original != ver_modified)
+        throw error { "version mismatch between music data files" };
+
+    // Compare the two files and create a map of unique charts.
+    auto static unique = std::unordered_map<int, std::array<bool, 10>> {};
+
+    for (auto const& [index, ratings]: mdb_modified)
+        for (auto i = 0u; i < ratings.size(); ++i)
+            if (ratings[i] != mdb_original[index][i])
+                unique[index][i] = ratings[i] > 0;
+
+    // Set up some version-specific context for the hook.
+    auto static const index_offset = ver_original == 31 ?
+        bm2dx::mdb_v31::index_offset: bm2dx::mdb_v32::index_offset;
+
+    // Find a function that sets up category bars during music select init.
+    auto const target = memory::find(bm2dx, "4C 8B DC 49 89 53 ? 55");
+    auto static hook = safetyhook::InlineHook {};
+
+    hook = safetyhook::create_inline(target, +[] (std::uint8_t* bar,
+        std::uint8_t* entry, int chart, int style, int a5, int a6)
+    {
+        auto const result = hook.call<bool>(bar, entry, chart, style, a5, a6);
+        auto const charts = std::span { reinterpret_cast<int*>(bar + 0x20), 5 };
+
+        // Revert anything currently using this bar style to default.
+        std::ranges::transform(charts, charts.begin(),
+            [] (auto&& v) { return v == omnimix_bar_style ? 0: v; });
+
+        // Check if the music entry for this bar is in the unique map.
+        auto const index = *reinterpret_cast<int*>(entry + index_offset);
+        auto const offset = style == 1 ? 5: 0;
+
+        if (unique.contains(index))
+        {
+            charts[0] = unique.at(index)[0 + offset] ? omnimix_bar_style: 0;
+            charts[1] = unique.at(index)[1 + offset] ? omnimix_bar_style: 0;
+            charts[2] = unique.at(index)[2 + offset] ? omnimix_bar_style: 0;
+            charts[3] = unique.at(index)[3 + offset] ? omnimix_bar_style: 0;
+            charts[4] = unique.at(index)[4 + offset] ? omnimix_bar_style: 0;
+        }
+
+        return result;
+    });
+}
+
+/**
  * Reports version information to the server on boot.
  */
 auto setup_xrpc_services_get_hook(auto&& bm2dx)
@@ -521,6 +650,7 @@ auto init(std::uint8_t* module) -> int
         { "--omnifix-disable-boot-text", false },
         { "--omnifix-disable-xrpc-meta", false },
         { "--omnifix-disable-clear-rate-fix", false },
+        { "--omnifix-enable-banner-hook", false },
     };
 
     for (auto&& [option, enabled]: options)
@@ -550,6 +680,9 @@ auto init(std::uint8_t* module) -> int
 
     if (!options["--omnifix-disable-clear-rate-fix"])
         setup_clear_rate_hook(region);
+
+    if (options["--omnifix-enable-banner-hook"])
+        setup_song_banner_hook(region);
 
     for (auto&& patch: patches)
         patch.enable();
