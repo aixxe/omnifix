@@ -1,6 +1,6 @@
 {
     "name": "omnifix",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "builtin-baseline": "04ba8c4ecf27e07d9e50dadfd143ecd35b77a6d0",
     "dependencies": [
         {

@@ -6,6 +6,7 @@ Omnimix patches for beatmania IIDX implemented as a hook library
 - Automatically discovers and applies all necessary patches
 - Fixes clear & full-combo rates not displaying for all charts
 - Uses lightning model files for subscreen searching if detected
+- Option to show Omnimix charts with a distinct bar style in music select
 - Includes music data & chart hashes for optional server-side validation
 
 ## Compatibility

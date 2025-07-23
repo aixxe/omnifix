@@ -1,5 +1,6 @@
 #include <array>
 #include <format>
+#include <ranges>
 #include <windows.h>
 #include <picosha2.h>
 #include <unordered_set>
@@ -510,17 +511,38 @@ auto setup_song_banner_hook(auto&& bm2dx)
 /**
  * Reports version information to the server on boot.
  */
-auto setup_xrpc_services_get_hook(auto&& bm2dx)
+auto setup_xrpc_services_get_hook()
 {
+    auto constexpr patterns = std::array
+    {
+        // 2.17.4 (r8528)
+        "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC ? 48 89 D3",
+
+        // 2.17.3 (r8311)
+        "55 48 83 EC 60 48 8D 6C 24 30 48 89 4D 40 48 89 55 48 48 "
+        "C7 45 08 FE FF FF FF",
+
+        // 2.17.0 (r7883)
+        "55 48 83 EC 30 48 8D 6C 24 20 48 89 4D 20 48 89 55 28 48 "
+        "C7 45 00 FE FF FF FF 48 8B 45 20 48 89 45 08 48 8B 55 08 "
+        "48 8B 0A",
+    };
+
     avs2::log::info("enabling xrpc services metadata hook");
 
     auto const ea3lib = modules::find("avs2-ea3.dll");
-    auto const target = memory::find(ea3lib.region(),
-        "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC ? 48 89 D3");
+    auto scans = patterns | std::views::transform([&] (auto&& pattern)
+        { return memory::find(ea3lib.region(), pattern, true); });
+
+    auto const target = std::ranges::find_if(scans, [] (auto&& result)
+        { return result != nullptr; });
+
+    if (target == scans.end())
+        throw error { "failed to find xrpc services.get hook target" };
 
     auto static services_get_hook = safetyhook::InlineHook {};
 
-    services_get_hook = safetyhook::create_inline(target,
+    services_get_hook = safetyhook::create_inline(*target,
         +[] (void* ctx, avs2::node_ptr* node) -> void*
     {
         auto hash = hash_type {};
@@ -684,7 +706,7 @@ auto init(std::uint8_t* module) -> int
 
     if (!flags.contains("omnifix-disable-xrpc-meta"))
     {
-        setup_xrpc_services_get_hook(region);
+        setup_xrpc_services_get_hook();
         setup_xrpc_music_reg_hook(region);
     }
 
