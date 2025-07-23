@@ -105,6 +105,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-enable-banner-hook`
 > Display Omnimix exclusive charts with a distinct banner color in music select
 
+> ##### `--omnifix-revision-code=X`
+> Replaces the default `X` revision code with a custom one. Single character only
+
 ## Network validation
 
 By default, omnifix will append additional metadata to the initial services request and new score submissions
