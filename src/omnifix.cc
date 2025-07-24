@@ -485,23 +485,29 @@ auto setup_song_banner_hook(auto&& bm2dx)
         std::uint8_t* entry, int chart, int style, int a5, int a6)
     {
         auto const result = hook.call<bool>(bar, entry, chart, style, a5, a6);
+
+        // View of the bar styles for this music entry - one per chart.
+        // In order: BEGINNER, NORMAL, HYPER, ANOTHER, LEGGENDARIA.
         auto const charts = std::span { reinterpret_cast<int*>(bar + 0x20), 5 };
 
-        // Revert anything currently using this bar style to default.
+        // Reset anything using our designated bar style to default.
         std::ranges::transform(charts, charts.begin(),
             [] (auto&& v) { return v == omnimix_bar_style ? 0: v; });
 
         // Check if the music entry for this bar is in the unique map.
+        // If so, it is either an entirely unique song, or has unique charts.
         auto const index = *reinterpret_cast<int*>(entry + index_offset);
-        auto const offset = style == 1 ? 5: 0;
 
         if (unique.contains(index))
         {
-            charts[0] = unique.at(index)[0 + offset] ? omnimix_bar_style: 0;
-            charts[1] = unique.at(index)[1 + offset] ? omnimix_bar_style: 0;
-            charts[2] = unique.at(index)[2 + offset] ? omnimix_bar_style: 0;
-            charts[3] = unique.at(index)[3 + offset] ? omnimix_bar_style: 0;
-            charts[4] = unique.at(index)[4 + offset] ? omnimix_bar_style: 0;
+            // View of the unique charts for this music entry.
+            // Offset of 5 for DP charts, as the first 5 are always SP.
+            auto const custom = std::span { unique.at(index) }
+                .subspan(style == 1 ? 5: 0, charts.size());
+
+            // If the chart is unique to Omnimix, override the bar style.
+            for (auto&& [bar_style, is_unique]: std::views::zip(charts, custom))
+                bar_style = is_unique ? omnimix_bar_style: bar_style;
         }
 
         return result;
