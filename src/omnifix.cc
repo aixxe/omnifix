@@ -216,7 +216,8 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
  */
 auto setup_revision_patch(auto&& bm2dx)
 {
-    avs2::log::info("using custom '{}' revision code", override_revision_code);
+    avs2::log::info("using custom '{}' revision code",
+        static_cast<char>(override_revision_code));
 
     // Ensures the condition for the second part is always met.
     auto target = memory::find(bm2dx, "40 84 F6 ? ? 48 85 FF");
