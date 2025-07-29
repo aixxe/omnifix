@@ -1,5 +1,7 @@
 # omnifix
 [![Build](https://github.com/aixxe/omnifix/actions/workflows/Build-MSVC.yml/badge.svg)](https://github.com/aixxe/omnifix/actions/workflows/Build-MSVC.yml)
+[![Build](https://github.com/aixxe/omnifix/actions/workflows/Build-LLVM.yml/badge.svg)](https://github.com/aixxe/omnifix/actions/workflows/Build-LLVM.yml)
+[![Build](https://github.com/aixxe/omnifix/actions/workflows/Build-GCC.yml/badge.svg)](https://github.com/aixxe/omnifix/actions/workflows/Build-GCC.yml)
 
 Omnimix patches for beatmania IIDX implemented as a hook library
 
