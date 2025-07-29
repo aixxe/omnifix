@@ -1,6 +1,7 @@
 #include <array>
 #include <format>
 #include <ranges>
+#include <cstring>
 #include <windows.h>
 #include <picosha2.h>
 #include <unordered_set>
