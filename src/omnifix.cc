@@ -79,6 +79,26 @@ auto create_common_node(avs2::node_ptr* node) -> avs2::node_ptr
 }
 
 /**
+ * Return the first found match from an array of patterns.
+ *
+ * @param region The memory region to search, represented as a span of bytes.
+ * @param patterns Array of patterns to search through.
+ * @return Pointer to the first byte if found, else `std::nullopt`.
+ */
+auto find_first_pattern(auto&& region, auto&& patterns)
+    -> std::optional<std::uint8_t*>
+{
+    auto scans = patterns | std::views::transform([&] (auto&& pattern)
+        { return memory::find(region, pattern, true); });
+
+    for (auto&& element: scans)
+        if (element != nullptr)
+            return element;
+
+    return std::nullopt;
+}
+
+/**
  * Return pointer to the music data file path.
  */
 auto find_music_data_bin_path(auto&& bm2dx) -> std::string_view
@@ -521,7 +541,10 @@ auto setup_song_banner_hook(auto&& bm2dx)
  */
 auto setup_xrpc_services_get_hook()
 {
-    auto constexpr patterns = std::array
+    avs2::log::info("enabling xrpc services metadata hook");
+
+    auto const ea3lib = modules::find("avs2-ea3.dll");
+    auto const target = find_first_pattern(ea3lib.region(), std::array
     {
         // 2.17.4 (r8528)
         "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC ? 48 89 D3",
@@ -534,18 +557,9 @@ auto setup_xrpc_services_get_hook()
         "55 48 83 EC 30 48 8D 6C 24 20 48 89 4D 20 48 89 55 28 48 "
         "C7 45 00 FE FF FF FF 48 8B 45 20 48 89 45 08 48 8B 55 08 "
         "48 8B 0A",
-    };
+    });
 
-    avs2::log::info("enabling xrpc services metadata hook");
-
-    auto const ea3lib = modules::find("avs2-ea3.dll");
-    auto scans = patterns | std::views::transform([&] (auto&& pattern)
-        { return memory::find(ea3lib.region(), pattern, true); });
-
-    auto const target = std::ranges::find_if(scans, [] (auto&& result)
-        { return result != nullptr; });
-
-    if (target == scans.end())
+    if (!target)
         throw error { "failed to find xrpc services.get hook target" };
 
     auto static services_get_hook = safetyhook::InlineHook {};
