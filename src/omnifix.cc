@@ -63,7 +63,7 @@ auto add_patch(std::uint8_t* ptr, std::initializer_list<std::uint8_t>&& bytes)
  * @param node Pointer to an AVS2 node to append to.
  * @return Newly created node for adding request-specific data.
  */
-auto create_common_node(avs2::node_ptr* node) -> avs2::node_ptr
+auto create_common_node(avs2::node_ptr node) -> avs2::node_ptr
 {
     auto const result = avs2::property_node_create
         (nullptr, node, avs2::node_type_node, "omnifix");
@@ -83,10 +83,9 @@ auto create_common_node(avs2::node_ptr* node) -> avs2::node_ptr
  *
  * @param region The memory region to search, represented as a span of bytes.
  * @param patterns Array of patterns to search through.
- * @return Pointer to the first byte if found, else `std::nullopt`.
+ * @return Pointer to the first byte if found, else `nullptr`.
  */
-auto find_first_pattern(auto&& region, auto&& patterns)
-    -> std::optional<std::uint8_t*>
+auto find_first_pattern(auto&& region, auto&& patterns) -> std::uint8_t*
 {
     auto scans = patterns | std::views::transform([&] (auto&& pattern)
         { return memory::find(region, pattern, true); });
@@ -95,7 +94,10 @@ auto find_first_pattern(auto&& region, auto&& patterns)
         if (element != nullptr)
             return element;
 
-    return std::nullopt;
+    for (auto&& pattern: patterns)
+        avs2::log::warning("failed to find pattern '{}'", pattern);
+
+    throw error { "pattern not found" };
 }
 
 /**
@@ -216,8 +218,13 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
     avs2::log::info("enabling file path patches");
 
     // Ensure the mandatory files exist before continuing.
-    patch_mdata_ifs_path(memory::follow(memory::find(bm2dx,
-        "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8D 3D ? ? ? ? 4C 89 3D")));
+    if (auto target = memory::find(bm2dx, "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8D 3D ? ? ? ? 4C 89 3D", true))
+        // For IIDX 28 and above, it's already too late to patch the file path.
+        // Instead, we have to find a copy of it that was made during CRT init.
+        patch_mdata_ifs_path(memory::follow(target));
+    else
+        // This isn't an issue for older styles, so just search for the path.
+        patch_mdata_ifs_path(memory::find(bm2dx, memory::to_pattern("/?/mdat?.ifs", '?')));
 
     patch_music_data_bin_path(memory::find(bm2dx,
         memory::to_pattern("/data/info/?/music_????.bin", '?')));
@@ -266,7 +273,11 @@ auto setup_leggendaria_patch(auto&& bm2dx)
     add_patch(target + 2, { 0xEB });
 
     // Fixes non-default charts not appearing in the LEGGENDARIA folder.
-    target = memory::find(bm2dx, "E8 ? ? ? ? 48 8B CE E8 ? ? ? ? 84 C0 74 ? 8B D3");
+    auto target = find_first_pattern(bm2dx, std::array {
+        /* IIDX 28+ */ "E8 ? ? ? ? 48 8B CE E8 ? ? ? ? 84 C0 74 ? 8B D3",
+        /* IIDX 27  */ "E8 ? ? ? ? 8B D3 48 8B CF E8 ? ? ? ? 49 8B CE",
+    });
+
     target = memory::find({ memory::follow(target), 0x100 }, "84 C0 ? ? E8");
     add_patch(target + 2, { 0x90, 0x90 });
 }
@@ -279,8 +290,7 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     avs2::log::info("enabling music data buffer patches");
 
     // Find the function responsible for loading the 'music_data.bin' file.
-    auto base = memory::follow(memory::find(bm2dx,
-        "E8 ? ? ? ? E8 ? ? ? ? E8 ? ? ? ? 33 C0"));
+    auto base = memory::find(bm2dx, "79 ? BB ? ? ? ? EB ? E8");
 
     // Jump ahead to a call that returns the static buffer for the file.
     base = memory::find({ base, base + 0x100 }, "BB 32 00 00 00 EB ? E8");
@@ -305,19 +315,20 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     buffer[2] = new_buffer + 0x10;
 
     // Hook the file read call to write into the new buffer instead.
-    auto target = memory::find(bm2dx, "FF 15 ? ? ? ? 85 C0 79 ? BB");
+    auto target = memory::find(bm2dx, "FF 15 ? ? ? ? 85 C0 79 ? BB ? ? ? ? EB ? E8");
     auto static music_data_read_hook = safetyhook::create_mid(target,
         [] (SafetyHookContext& ctx) -> void
     {
-        ctx.rdx = reinterpret_cast<std::uintptr_t>(new_buffer);
+        ctx.rdx = std::bit_cast<std::uintptr_t>(new_buffer);
         ctx.r8  = music_data_buffer_size;
     });
 
     // Finally, patch all references to the music data buffer.
-    target = memory::find(bm2dx, "E8 ? ? ? ? 85 C0 78 ? 48 8B 0D");
-    target = memory::follow(target);
-    target = memory::find({ target, target + 0x100 }, "48 ? 0D");
-    add_patch(target + 1, { 0x8B });
+    target = find_first_pattern(bm2dx, std::array {
+        /* IIDX 32  */ "E8 ? ? ? ? 39 58 ? 76 ? 48 [?] 0D ? ? ? ? 8B 04 99",
+        /* IIDX 27+ */ "48 [?] 0D ? ? ? ? 0F B7 0C 59 66 85 C9 79",
+    });
+    add_patch(target, { 0x8B });
 
     target = memory::find(bm2dx, "E8 ? ? ? ? 48 8B F8 83 B8");
     target = memory::follow(target);
@@ -329,7 +340,7 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     target = memory::find({ target, target + 0x100 }, "48 ? 0D");
     add_patch(target + 1, { 0x8B });
 
-    target = memory::find(bm2dx, "E8 ? ? ? ? 33 FF 8B F7");
+    target = memory::find(bm2dx, "E8 ? ? ? ? 85 DB 78");
     target = memory::follow(target);
     add_patch(target + 1, { 0x8B });
 }
@@ -341,10 +352,10 @@ auto setup_chart_unlock_patch(auto&& bm2dx)
 {
     avs2::log::info("enabling chart unlock patch");
 
-    auto target = memory::find(bm2dx, "E8 ? ? ? ? 84 C0 74 ? 42 0F BE 8C 3D");
-    target = memory::find({ memory::follow(target), 0x100 },
-        "48 8B 5C 24 40 ? ? 48 8B 74 24 48 48 83 C4 30 5F C3 CC");
-    add_patch(target + 5, { 0xB0, 0x01 });
+    auto target = memory::find(bm2dx, "74 12 B0 01 48 8B 5C 24 40");
+         target = memory::find({ target, target + 0x100 }, "32 C0");
+
+    add_patch(target, { 0xB0, 0x01 });
 }
 
 /**
@@ -460,9 +471,9 @@ auto parse_music_data_file(auto&& path)
     if (buffer.empty() || std::memcmp(header->magic, "IIDX", 4) != 0)
         throw error { "failed to read music data file '{}'", path };
 
-    if (header->version == 31)
-        return iterate_mdb_entries<bm2dx::mdb_v31>(buffer);
-    if (header->version == 32)
+    if (bm2dx::mdb_v27::is_supported(header->version))
+        return iterate_mdb_entries<bm2dx::mdb_v27>(buffer);
+    if (bm2dx::mdb_v32::is_supported(header->version))
         return iterate_mdb_entries<bm2dx::mdb_v32>(buffer);
 
     throw error { "unsupported version {} in '{}'", header->version, path };
@@ -474,6 +485,12 @@ auto parse_music_data_file(auto&& path)
 auto setup_song_banner_hook(auto&& bm2dx)
 {
     avs2::log::info("enabling song banner hook");
+
+    // Find a function that sets up category bars during music select init.
+    auto const target = find_first_pattern(bm2dx, std::array {
+        /* IIDX 28+ */ "4C 8B DC 49 89 53 ? 55",
+        /* IIDX 27  */ "48 89 5C 24 ? 48 89 6C 24 ? 48 89 7C 24 ? 41 54 41 56 41 57 48 83 EC ? 8B 44 24",
+    });
 
     // Color Omnimix charts using the "listb_lightning" bar texture.
     auto constexpr omnimix_bar_style = 2;
@@ -501,11 +518,9 @@ auto setup_song_banner_hook(auto&& bm2dx)
                 unique[index][i] = ratings[i] > 0;
 
     // Set up some version-specific context for the hook.
-    auto static const index_offset = ver_original == 31 ?
-        bm2dx::mdb_v31::index_offset: bm2dx::mdb_v32::index_offset;
+    auto static const index_offset = bm2dx::mdb_v27::is_supported(ver_original) ?
+        bm2dx::mdb_v27::index_offset: bm2dx::mdb_v32::index_offset;
 
-    // Find a function that sets up category bars during music select init.
-    auto const target = memory::find(bm2dx, "4C 8B DC 49 89 53 ? 55");
     auto static hook = safetyhook::InlineHook {};
 
     hook = safetyhook::create_inline(target, +[] (std::uint8_t* bar,
@@ -549,28 +564,16 @@ auto setup_xrpc_services_get_hook()
     avs2::log::info("enabling xrpc services metadata hook");
 
     auto const ea3lib = modules::find("avs2-ea3.dll");
-    auto const target = find_first_pattern(ea3lib.region(), std::array
-    {
-        // 2.17.4 (r8528)
-        "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC ? 48 89 D3",
-
-        // 2.17.3 (r8311)
-        "55 48 83 EC 60 48 8D 6C 24 30 48 89 4D 40 48 89 55 48 48 "
-        "C7 45 08 FE FF FF FF",
-
-        // 2.17.0 (r7883)
-        "55 48 83 EC 30 48 8D 6C 24 20 48 89 4D 20 48 89 55 28 48 "
-        "C7 45 00 FE FF FF FF 48 8B 45 20 48 89 45 08 48 8B 55 08 "
-        "48 8B 0A",
+    auto const target = find_first_pattern(ea3lib.region(), std::array {
+        /* 2.17.4 (r8528) */ "41 57 41 56 41 55 41 54 56 57 55 53 48 83 EC ? 48 89 D3",
+        /* 2.17.3 (r8311) */ "55 48 83 EC 60 48 8D 6C 24 30 48 89 4D 40 48 89 55 48 48 C7 45 08 FE FF FF FF",
+        /* 2.17.0 (r7883) */ "55 48 83 EC 30 48 8D 6C 24 20 48 89 4D 20 48 89 55 28 48 C7 45 00 FE FF FF FF 48 8B 45 20 48 89 45 08 48 8B 55 08 48 8B 0A",
     });
-
-    if (!target)
-        throw error { "failed to find xrpc services.get hook target" };
 
     auto static services_get_hook = safetyhook::InlineHook {};
 
-    services_get_hook = safetyhook::create_inline(*target,
-        +[] (void* ctx, avs2::node_ptr* node) -> void*
+    services_get_hook = safetyhook::create_inline(target,
+        +[] (void* ctx, avs2::node_ptr node) -> void*
     {
         auto hash = hash_type {};
         auto const buffer = avs2::file::read(mdb_path);
@@ -599,11 +602,15 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
 {
     avs2::log::info("enabling xrpc music metadata hook");
 
-    // Functions where we'll be placing hooks.
+    // Hook target after the chart is loaded into a buffer.
     auto const chart_load_target = memory::find(bm2dx,
-        "48 8D 4C 24 ? E8 ? ? ? ? 0F B6 C3 48 8B 8C 24");
-    auto const music_reg_target = memory::find(bm2dx,
-        "48 89 54 24 10 48 89 4C 24 08 48 81 EC A8 00 00 00 48 8B 84 24 B0");
+        "E8 ? ? ? ? 0F B6 C3 48 8B 8C 24 ? ? ? ? 48 33 CC E8 ? ? ? ? 48 81 C4");
+
+    // Function that populates the request property before sending to the server.
+    // Prologue pattern scans are massive and differ between games, so we scan
+    // for some common instructions further in, then backtrack to the start.
+    auto music_reg_target = memory::find(bm2dx, "E8 ? ? ? ? 48 8B 44 24 ? 0F BF 40");
+         music_reg_target = memory::rfind({ bm2dx.data(), music_reg_target }, "CC [48]");
 
     // Chart buffer pointer to use as a reference.
     auto static const chart_buffer_ptr = reinterpret_cast<void* (*) ()>
@@ -631,15 +638,15 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
     auto static music_reg_hook = safetyhook::InlineHook {};
 
     music_reg_hook = safetyhook::create_inline(music_reg_target,
-        +[] (void* ctx, avs2::node_ptr* node) -> void*
+        +[] (void* a1, avs2::node_ptr node) -> bool
     {
-        auto const result = music_reg_hook.call<void*>(ctx, node);
+        auto const result = music_reg_hook.call<bool>(a1, node);
 
         // Read out the player side so we can link it to an already calculated
         // hash value. Attributes are always read out as strings.
         auto buffer = std::array<char, 8> {};
 
-        avs2::property_node_refer(nullptr, node, "pside@",
+        avs2::property_node_refer(nullptr, node, "rankside@",
             avs2::node_type_attr, buffer.data(), buffer.size());
 
         auto const side = std::stoi(buffer.data());

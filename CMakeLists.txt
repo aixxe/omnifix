@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(omnifix VERSION 0.3.1 LANGUAGES CXX)
+project(omnifix VERSION 0.4.0 LANGUAGES CXX)
 
 find_package(Zydis CONFIG REQUIRED)
 find_package(safetyhook CONFIG REQUIRED)

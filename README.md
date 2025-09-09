@@ -15,8 +15,14 @@ Omnimix patches for beatmania IIDX implemented as a hook library
 
 The same `omnifix.dll` file can be used across all supported games:
 
-- beatmania IIDX 31 EPOLIS
 - beatmania IIDX 32 Pinky Crush
+- beatmania IIDX 31 EPOLIS
+- beatmania IIDX 30 RESIDENT
+- beatmania IIDX 29 CastHour
+- beatmania IIDX 28 BISTROVER
+- beatmania IIDX 27 HEROIC VERSE
+
+<small>※ LDJ-010 and LDJ-012 versions only</sub>
 
 ## Install
 
@@ -56,34 +62,36 @@ If using Bemanitools, you may also want to use the `-Y log.txt` launcher option 
 Related messages should appear in the log file, for example:
 
 ```
-[2025/07/20 16:57:57] I:omnifix: omnifix v0.1.0 (master@3479ff70) loaded at 0x7ffaf55a0000
-[2025/07/20 16:57:57] I:omnifix: built Jul 20 2025 17:57:52 with Clang 20.1.8
-[2025/07/20 16:57:57] I:omnifix: detected game library 'bm2dx.dll' at 0x180000000
-[2025/07/20 16:57:57] I:omnifix: enabling file path patches
-[2025/07/20 16:57:57] I:omnifix: checking if file '/data/graphic/0/mdato.ifs' exists
-[2025/07/20 16:57:57] I:omnifix: checking if file '/data/info/0/music_omni.bin' exists
-[2025/07/20 16:57:57] I:omnifix: checking if file '/data/info/0//music_title_omni.xml' exists
-[2025/07/20 16:57:57] I:omnifix: checking if file '/data/info/0//music_artist_omni.xml' exists
-[2025/07/20 16:57:57] I:omnifix: checking if file '/data/info/0/video_music_omni.xml' exists
-[2025/07/20 16:57:57] W:omnifix: optional file '/data/info/0/video_music_omni.xml' not found
-[2025/07/20 16:57:57] I:omnifix: using custom 'X' revision code
-[2025/07/20 16:57:57] I:omnifix: enabling leggendaria fix patches
-[2025/07/20 16:57:57] I:omnifix: enabling clear rate hooks
-[2025/07/20 16:57:57] I:omnifix: enabling music data buffer patches
-[2025/07/20 16:57:57] I:omnifix: enabling xrpc services metadata hook
-[2025/07/20 16:57:57] I:omnifix: enabling xrpc music metadata hook
-[2025/07/20 16:57:57] I:omnifix: initialized successfully in 0.06 seconds
+[2025/09/09 23:14:18] I:omnifix: omnifix v0.4.0 (master@3c6e4c5f) loaded at 0x7ffbc7010000
+[2025/09/09 23:14:18] I:omnifix: built Sep 10 2025 00:11:07 with Clang 20.1.8
+[2025/09/09 23:14:18] I:omnifix: detected game library 'bm2dx.dll' at 0x180000000
+[2025/09/09 23:14:18] I:omnifix: enabling file path patches
+[2025/09/09 23:14:18] I:omnifix: checking if file '/data/graphic/0/mdato.ifs' exists
+[2025/09/09 23:14:18] I:omnifix: checking if file '/data/info/0/music_omni.bin' exists
+[2025/09/09 23:14:18] I:omnifix: checking if file '/data/info/0//music_title_omni.xml' exists
+[2025/09/09 23:14:18] I:omnifix: checking if file '/data/info/0//music_artist_omni.xml' exists
+[2025/09/09 23:14:18] I:omnifix: checking if file '/data/info/0/video_music_omni.xml' exists
+[2025/09/09 23:14:18] W:omnifix: optional file '/data/info/0/video_music_omni.xml' not found
+[2025/09/09 23:14:18] I:omnifix: using custom 'X' revision code
+[2025/09/09 23:14:18] I:omnifix: enabling leggendaria fix patches
+[2025/09/09 23:14:18] I:omnifix: enabling music data buffer patches
+[2025/09/09 23:14:19] I:omnifix: enabling chart unlock patch
+[2025/09/09 23:14:19] I:omnifix: enabling xrpc services metadata hook
+[2025/09/09 23:14:19] I:omnifix: enabling xrpc music metadata hook
+[2025/09/09 23:14:19] I:omnifix: enabling clear rate hooks
+[2025/09/09 23:14:19] I:omnifix: enabling song banner hook
+[2025/09/09 23:14:19] I:omnifix: initialized successfully in 0.14 seconds
 ```
 
 Set the log level to `misc` for even more detailed messages, e.g.
 
 ```
-[2025/07/20 16:57:57] M:omnifix: applying patch at 0x1805e5b9c (size: 1)
-[2025/07/20 16:57:57] M:omnifix:   - original: eb
-[2025/07/20 16:57:57] M:omnifix:   - modified: 75
-[2025/07/20 16:57:57] M:omnifix: applying patch at 0x180863294 (size: 2)
-[2025/07/20 16:57:57] M:omnifix:   - original: 90 90
-[2025/07/20 16:57:57] M:omnifix:   - modified: 74 25
+[2025/09/09 23:14:18] M:omnifix: applying patch at 0x1805f389c (size: 1)
+[2025/09/09 23:14:18] M:omnifix:   - original: eb
+[2025/09/09 23:14:18] M:omnifix:   - modified: 75
+[2025/09/09 23:14:18] M:omnifix: applying patch at 0x180878374 (size: 2)
+[2025/09/09 23:14:18] M:omnifix:   - original: 90 90
+[2025/09/09 23:14:18] M:omnifix:   - modified: 74 25
 ```
 
 ## Options
@@ -123,7 +131,7 @@ The services request on boot will include the SHA-256 hash of the `data/info/#/m
 <?xml version="1.0" encoding="Shift-JIS"?>
 <call model="LDJ:J:D:X:2024100900" srcid="00000000000000000000" tag="00000000">
   <services method="get">
-    <omnifix branch="master" commit="3479ff70" version="0.1.0">
+    <omnifix branch="master" commit="3c6e4c5f" version="0.4.0">
       <mdb_hash __type="bin" __size="32">ca58c3de8670c29bd8e649c2cbf9f34bc29bbca705ffa048d6c24aec3d3baa66</mdb_hash>
     </omnifix>
     <info></info>
@@ -146,7 +154,7 @@ Every newly submitted score will also include a SHA-256 hash of the chart, obtai
     <ghost_gauge></ghost_gauge>
     <music_play_log></music_play_log>
     <best_result></best_result>
-    <omnifix branch="master" commit="3479ff70" version="0.1.0">
+    <omnifix branch="master" commit="3c6e4c5f" version="0.4.0">
       <chart_hash __type="bin" __size="32">35d09686bdca856337ba44844a58672b4421c3084bb6e22a204c2c984e361052</chart_hash>
     </omnifix>
   </IIDX32music>
