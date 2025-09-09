@@ -269,8 +269,8 @@ auto setup_leggendaria_patch(auto&& bm2dx)
     avs2::log::info("enabling leggendaria fix patches");
 
     // Fixes titles not appearing purple when hovered over in music select.
-    if (auto target = memory::find(bm2dx, "84 C0 ? ? FF C3 48 83 C7", true))
-        add_patch(target + 2, { 0xEB });
+    if (auto target = memory::find(bm2dx, "84 C0 [?] ? FF C3 48 83 C7", true))
+        add_patch(target, { 0xEB });
     else
         avs2::log::warning("skipping leggendaria color patch");
 
@@ -280,8 +280,8 @@ auto setup_leggendaria_patch(auto&& bm2dx)
         /* IIDX 27  */ "E8 ? ? ? ? 8B D3 48 8B CF E8 ? ? ? ? 49 8B CE",
     });
 
-    target = memory::find({ memory::follow(target), 0x100 }, "84 C0 ? ? E8");
-    add_patch(target + 2, { 0x90, 0x90 });
+    target = memory::find({ memory::follow(target), 0x100 }, "84 C0 [?] ? E8");
+    add_patch(target, { 0x90, 0x90 });
 }
 
 /**
@@ -295,16 +295,15 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     auto base = memory::find(bm2dx, "79 ? BB ? ? ? ? EB ? E8");
 
     // Jump ahead to a call that returns the static buffer for the file.
-    base = memory::find({ base, base + 0x100 }, "BB 32 00 00 00 EB ? E8");
-    auto const buffer = reinterpret_cast<void**>
-        (memory::follow(memory::follow(base + 7)));
+    auto const buffer = reinterpret_cast<void**>(memory::follow(memory::follow
+        (memory::find({ base, base + 0x100 }, "BB 32 00 00 00 EB ? [E8]"))));
 
     // Patch out a check that fails if the custom database has too many songs.
     base = memory::find({ base, base + 0x100 }, "E8 ? ? ? ? 48 8B C8");
     add_patch(base - 2, { 0x90, 0x90 });
 
     // Patch another check that fails if the file on disk is too large.
-    add_patch(memory::find(bm2dx, "48 81 F9 ? ? ? ? 76 ? BB") + 3, {
+    add_patch(memory::find(bm2dx, "48 81 F9 [?] ? ? ? 76 ? BB"), {
         music_data_buffer_size       & 0xFF,
         music_data_buffer_size >>  8 & 0xFF,
         music_data_buffer_size >> 16 & 0xFF,
@@ -334,13 +333,13 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
 
     target = memory::find(bm2dx, "E8 ? ? ? ? 48 8B F8 83 B8");
     target = memory::follow(target);
-    target = memory::find({ target, target + 0x100 }, "48 ? 05");
-    add_patch(target + 1, { 0x8B });
+    target = memory::find({ target, target + 0x100 }, "48 [?] 05");
+    add_patch(target, { 0x8B });
 
     target = memory::find(bm2dx, "E8 ? ? ? ? 48 85 C0 B9");
     target = memory::follow(target);
-    target = memory::find({ target, target + 0x100 }, "48 ? 0D");
-    add_patch(target + 1, { 0x8B });
+    target = memory::find({ target, target + 0x100 }, "48 [?] 0D");
+    add_patch(target, { 0x8B });
 
     target = memory::find(bm2dx, "E8 ? ? ? ? 85 DB 78");
     target = memory::follow(target);
@@ -372,8 +371,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
     auto constexpr item_count = 20;
 
     // Response handler function for the 'IIDX--music.crate' XRPC method.
-    auto crate_recv_fn = memory::find(bm2dx, "C7 44 24 ? ? ? ? ? C7 44 24 "
-        "? ? ? ? ? C7 44 24 ? ? ? ? ? EB ? 8B 44 24");
+    auto crate_recv_fn = memory::find(bm2dx,
+        "C7 44 24 ? ? ? ? ? C7 44 24 ? ? ? ? ? C7 44 24 ? ? ? ? ? EB ? 8B 44 24");
 
     // Functions to get rate data for a specific music ID and difficulty.
     auto clear_rate_fn = memory::find(bm2dx, "E8 ? ? ? ? 85 C0 8B 44 24");
@@ -680,8 +679,8 @@ auto setup_boot_text_hook(auto&& bm2dx)
     auto const static render_text = reinterpret_cast<render_fn>
         (memory::follow(memory::find(bm2dx, "E8 ? ? ? ? EB ? 8B 4D")));
 
-    auto const target = memory::find(bm2dx, "0F 8C ? ? ? ? 80 7D ? ? ? ? B9");
-    auto static boot_text_hook = safetyhook::create_mid(target + 6,
+    auto const target = memory::find(bm2dx, "0F 8C ? ? ? ? [80] 7D ? ? ? ? B9");
+    auto static boot_text_hook = safetyhook::create_mid(target,
         [] (SafetyHookContext&) -> void
     {
         render_text(1, 60, 112 + (8 * 32), &color, "OMNIFIX");
