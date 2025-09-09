@@ -269,8 +269,10 @@ auto setup_leggendaria_patch(auto&& bm2dx)
     avs2::log::info("enabling leggendaria fix patches");
 
     // Fixes titles not appearing purple when hovered over in music select.
-    auto target = memory::find(bm2dx, "84 C0 ? ? FF C3 48 83 C7");
-    add_patch(target + 2, { 0xEB });
+    if (auto target = memory::find(bm2dx, "84 C0 ? ? FF C3 48 83 C7", true))
+        add_patch(target + 2, { 0xEB });
+    else
+        avs2::log::warning("skipping leggendaria color patch");
 
     // Fixes non-default charts not appearing in the LEGGENDARIA folder.
     auto target = find_first_pattern(bm2dx, std::array {
