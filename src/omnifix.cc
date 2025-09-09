@@ -144,6 +144,9 @@ auto patch_music_data_bin_path(auto ptr)
  */
 auto patch_music_title_xml_path(auto ptr)
 {
+    if (!ptr)
+        return avs2::log::warning("music title XML path not found");
+
     auto constexpr offset = 26;
     auto path = std::string { reinterpret_cast<const char*>(ptr) };
 
@@ -160,6 +163,9 @@ auto patch_music_title_xml_path(auto ptr)
  */
 auto patch_music_artist_xml_path(auto ptr)
 {
+    if (!ptr)
+        return avs2::log::warning("music artist XML path not found");
+
     auto constexpr offset = 27;
     auto path = std::string { reinterpret_cast<const char*>(ptr) };
 
@@ -176,6 +182,9 @@ auto patch_music_artist_xml_path(auto ptr)
  */
 auto patch_video_music_list_xml_path(auto ptr)
 {
+    if (!ptr)
+        return avs2::log::warning("video music list XML path not found");
+
     auto constexpr offset = 25;
     auto path = std::string { reinterpret_cast<const char*>(ptr) };
 
@@ -215,13 +224,13 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
 
     // Optional files for LIGHTNING MODEL features.
     patch_music_title_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?//music_title_", '?')));
+        memory::to_pattern("/data/info/?//music_title_", '?'), true));
 
     patch_music_artist_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?//music_artist_", '?')));
+        memory::to_pattern("/data/info/?//music_artist_", '?'), true));
 
     patch_video_music_list_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?/video_music_", '?')));
+        memory::to_pattern("/data/info/?/video_music_", '?'), true));
 
     // More optional stuff for IIDX 32.
     patch_thumbnail_file_path(bm2dx);
