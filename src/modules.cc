@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <windows.h>
 #include <winternl.h>
+
 #include "modules.h"
 #include "exceptions.h"
 

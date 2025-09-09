@@ -61,6 +61,8 @@ namespace omnifix::memory
         return reinterpret_cast<T>(rfind(region, pattern, silent));
     }
 
-    auto to_pattern(std::string_view bytes) -> std::string;
+    auto to_pattern(std::string_view bytes,
+        std::optional<char> wildcard = std::nullopt) -> std::string;
+
     auto follow(std::uint8_t* ptr, std::int64_t operand = -1) -> std::uint8_t*;
 }

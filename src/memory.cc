@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <system_error>
 #include <Zydis/Zydis.h>
+
 #include "exceptions.h"
 #include "memory.h"
 
@@ -115,16 +116,18 @@ auto memory::rfind(std::span<std::uint8_t> region,
 }
 
 /**
- * Given a regular string, convert it into a string usable for scanning.
+ * Given a string, convert it into a pattern usable for scanning.
  *
- * @param bytes The input string to convert, e.g. "hello!".
- * @return Converted 'pattern' string, e.g. "68 65 6C 6C 6F 21".
+ * @param bytes The input string to convert, e.g. "he?lo!".
+ * @param wildcard Character to treat as a wildcard. `std::nullopt` to disable.
+ * @return Converted 'pattern' string, e.g. "68 65 ? 6C 6F 21".
  */
-auto memory::to_pattern(std::string_view bytes) -> std::string
+auto memory::to_pattern(std::string_view bytes,
+    std::optional<char> wildcard) -> std::string
 {
     auto result = bytes
-        | std::views::transform([] (auto c)
-            { return std::format("{:02X} ", c); })
+        | std::views::transform([wildcard] (char c) -> std::string
+            { return c == wildcard ? "? ": std::format("{:02X} ", c); })
         | std::views::join
         | std::ranges::to<std::string>();
 
