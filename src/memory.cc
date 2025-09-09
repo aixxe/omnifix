@@ -62,6 +62,7 @@ auto memory::patch::apply(const patch_data& data, const bool enabled) -> void
 auto find_generic(auto&& method, auto&& region,
     auto&& pattern, const bool silent) -> std::uint8_t*
 {
+    auto offset = std::optional<std::size_t> {};
     auto target = std::vector<std::optional<std::uint8_t>> {};
 
     for (auto&& range: pattern | std::views::split(' '))
@@ -71,6 +72,12 @@ auto find_generic(auto&& method, auto&& region,
 
         if (hex.empty())
             continue;
+
+        if (!offset && hex.starts_with('[') && hex.ends_with(']'))
+        {
+            hex = hex.substr(1, hex.size() - 2);
+            offset = target.size();
+        }
 
         if (!hex.starts_with('?'))
             bin = std::stoi(hex.data(), nullptr, 16);
@@ -84,7 +91,7 @@ auto find_generic(auto&& method, auto&& region,
     if (result.empty() && !silent)
         throw error { "pattern '{}' not found", pattern };
 
-    return !result.empty() ? result.data(): nullptr;
+    return !result.empty() ? result.data() + offset.value_or(0): nullptr;
 }
 
 /**
