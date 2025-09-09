@@ -104,10 +104,7 @@ auto find_first_pattern(auto&& region, auto&& patterns)
 auto find_music_data_bin_path(auto&& bm2dx) -> std::string_view
 {
     return std::string_view { memory::find<const char*>(bm2dx,
-        memory::to_pattern("/data/info/") + " ? " +
-        memory::to_pattern("/music_") + " ? ? ? ? " +
-        memory::to_pattern(".bin")
-    ) };
+        memory::to_pattern("/data/info/?/music_????.bin", '?')) };
 }
 
 /**
@@ -213,20 +210,18 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
     patch_mdata_ifs_path(memory::follow(memory::find(bm2dx,
         "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8D 3D ? ? ? ? 4C 89 3D")));
 
-    patch_music_data_bin_path(memory::follow(memory::find(bm2dx,
-        "48 8D 15 ? ? ? ? 48 8D 4C 24 ? E8 ? ? ? ? 8B D8 85 C0")));
+    patch_music_data_bin_path(memory::find(bm2dx,
+        memory::to_pattern("/data/info/?/music_????.bin", '?')));
 
     // Optional files for LIGHTNING MODEL features.
-    auto const prefix = memory::to_pattern("/data/info/");
-
     patch_music_title_xml_path(memory::find(bm2dx,
-        prefix + " ? " + memory::to_pattern("//music_title_")));
+        memory::to_pattern("/data/info/?//music_title_", '?')));
 
     patch_music_artist_xml_path(memory::find(bm2dx,
-        prefix + " ? " + memory::to_pattern("//music_artist_")));
+        memory::to_pattern("/data/info/?//music_artist_", '?')));
 
     patch_video_music_list_xml_path(memory::find(bm2dx,
-        prefix + " ? " + memory::to_pattern("/video_music_")));
+        memory::to_pattern("/data/info/?/video_music_", '?')));
 
     // More optional stuff for IIDX 32.
     patch_thumbnail_file_path(bm2dx);
