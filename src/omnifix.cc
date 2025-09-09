@@ -706,10 +706,12 @@ auto init(std::uint8_t* module) -> int
 
     if (options.contains("omnifix-revision-code"))
     {
-        auto const revision = options.at("omnifix-revision-code");
+        auto const& revision = options.at("omnifix-revision-code");
 
-        if (!revision.empty() && revision.size() == 1)
+        if (!revision.empty() && revision[0] >= 'A' && revision[0] <= 'Z')
             override_revision_code = revision[0];
+        else
+            avs2::log::warning("invalid override revision code");
     }
 
     if (!flags.contains("omnifix-disable-omnimix"))
