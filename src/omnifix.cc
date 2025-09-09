@@ -244,13 +244,14 @@ auto setup_revision_patch(auto&& bm2dx)
     avs2::log::info("using custom '{}' revision code",
         static_cast<char>(override_revision_code));
 
-    // Ensures the condition for the second part is always met.
-    auto target = memory::find(bm2dx, "40 84 F6 ? ? 48 85 FF");
-    add_patch(target + 3, { 0xEB, 0x30 });
+    auto const target_jz = memory::find(bm2dx, "40 84 F6 [?] ? 48 85 FF");
+    auto const target_mov = memory::find({ target_jz, target_jz + 0x100 }, "C6 47 ? ? BA");
 
-    // Patch that actually replaces the revision code.
-    target = memory::find({ target, target + 0x100 }, "C6 47 ? ? BA");
-    add_patch(target + 3, { override_revision_code });
+    // Replace the default revision code with our custom one.
+    add_patch(target_mov + 3, { override_revision_code });
+
+    // Skip checks and jump straight to the `mov`, ensuring the custom revision is used.
+    add_patch(target_jz, { 0xEB, static_cast<std::uint8_t>(target_mov - target_jz - 2) });
 }
 
 /**
