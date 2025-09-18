@@ -366,6 +366,10 @@ auto setup_clear_rate_hook(auto&& bm2dx)
 {
     avs2::log::info("enabling clear rate hooks");
 
+    // Clear rate value ranges to use for validation.
+    auto constexpr rate_min = 0;
+    auto constexpr rate_max = 1000;
+
     // How many items to read from each clear rate response node.
     // 5 difficulties * 2 play styles * 2 rate types = 20 items
     auto constexpr item_count = 20;
@@ -402,8 +406,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
         if (!rates.contains(id))
             return false;
 
-        int clear_value = rates[id][difficulty];
-        *rate = (clear_value >= 0 && clear_value <= 1000) ? clear_value : -1;
+        auto const value = rates[id][difficulty];
+        *rate = (value >= rate_min && value <= rate_max) ? value: -1;
 
         return true;
     });
@@ -415,8 +419,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
             return false;
 
         // Full combo rates appear directly after regular clear rates.
-        int fc_value = rates[id][difficulty + item_count / 2];
-        *rate = (fc_value >= 0 && fc_value <= 1000) ? fc_value : -1;
+        auto const value = rates[id][difficulty + item_count / 2];
+        *rate = (value >= rate_min && value <= rate_max) ? value: -1;
 
         return true;
     });
