@@ -402,7 +402,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
         if (!rates.contains(id))
             return false;
 
-        *rate = rates[id][difficulty];
+        int clear_value = rates[id][difficulty];
+        *rate = (clear_value >= 0 && clear_value <= 1000) ? clear_value : -1;
 
         return true;
     });
@@ -414,7 +415,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
             return false;
 
         // Full combo rates appear directly after regular clear rates.
-        *rate = rates[id][difficulty + item_count / 2];
+        int fc_value = rates[id][difficulty + item_count / 2];
+        *rate = (fc_value >= 0 && fc_value <= 1000) ? fc_value : -1;
 
         return true;
     });
