@@ -15,6 +15,7 @@ Omnimix patches for beatmania IIDX implemented as a hook library
 
 The same `omnifix.dll` file can be used across all supported games:
 
+- beatmania IIDX 33 Sparkle Shower
 - beatmania IIDX 32 Pinky Crush
 - beatmania IIDX 31 EPOLIS
 - beatmania IIDX 30 RESIDENT

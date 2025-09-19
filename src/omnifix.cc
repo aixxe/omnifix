@@ -203,11 +203,16 @@ auto patch_video_music_list_xml_path(auto ptr)
  */
 auto patch_thumbnail_file_path(auto&& bm2dx)
 {
-    auto constexpr prefix = "/data/graphic/thumbnail/";
+    auto constexpr prefix_32 = "/data/graphic/thumbnail/";
+    auto constexpr prefix_33 = "/data/graphic/movie_thumbnail/";
     auto constexpr bytes = std::to_array("%d_thum.png");
 
-    if (auto ptr = memory::find(bm2dx, memory::to_pattern(prefix), true))
-        add_patch(ptr + std::strlen(prefix), bytes);
+    if (auto ptr33 = memory::find(bm2dx, memory::to_pattern(prefix_33), true))
+        add_patch(ptr33 + std::strlen(prefix_33), bytes);
+    else if (auto ptr32 = memory::find(bm2dx, memory::to_pattern(prefix_32), true))
+        add_patch(ptr32 + std::strlen(prefix_32), bytes);
+    else
+        avs2::log::warning("thumbnail file path not found");
 }
 
 /**
@@ -239,7 +244,7 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
     patch_video_music_list_xml_path(memory::find(bm2dx,
         memory::to_pattern("/data/info/?/video_music_", '?'), true));
 
-    // More optional stuff for IIDX 32.
+    // More optional stuff for IIDX 32+
     patch_thumbnail_file_path(bm2dx);
 }
 
