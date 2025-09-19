@@ -33,7 +33,7 @@ namespace bm2dx
         auto static constexpr index_offset = 0x67C;
 
         auto static constexpr is_supported(auto version) -> bool
-            { return version == 32; }
+            { return version >= 32; }
 
         /* 0x0000 */ std::uint8_t magic[4];
         /* 0x0004 */ std::int32_t version;
