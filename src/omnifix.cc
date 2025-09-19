@@ -616,7 +616,7 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
     // Function that populates the request property before sending to the server.
     // Prologue pattern scans are massive and differ between games, so we scan
     // for some common instructions further in, then backtrack to the start.
-    auto music_reg_target = memory::find(bm2dx, "E8 ? ? ? ? 48 8B 44 24 ? 0F BF 40");
+    auto music_reg_target = memory::find(bm2dx, "48 83 C0 ? 48 C7 44 24 28 00 03 00 00 48 89 44");
          music_reg_target = memory::rfind({ bm2dx.data(), music_reg_target }, "CC [48]");
 
     // Chart buffer pointer to use as a reference.
