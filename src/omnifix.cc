@@ -21,6 +21,7 @@ auto constexpr expected_game_symbol = "dll_entry_main";
 auto constexpr music_data_buffer_size = std::uint32_t { 0x600000 };
 
 auto mdb_path = std::string_view {};
+auto mdb_common = bm2dx::mdb_common {};
 auto override_revision_code = std::uint8_t { 'X' };
 
 auto patches = std::vector<memory::patch> {};
@@ -749,7 +750,10 @@ auto init(std::uint8_t* module) -> int
     auto const region = bm2dx->region();
     auto const [flags, options] = modules::argv();
 
+    // Read music data stuff that will be used in other places.
     mdb_path = find_music_data_bin_path(region);
+    mdb_common = *reinterpret_cast<bm2dx::mdb_common*>
+        (read_music_data_file(mdb_path).data());
 
     if (options.contains("omnifix-revision-code"))
     {
