@@ -120,7 +120,7 @@ auto attr2int(avs2::node_ptr node, std::string_view name)
 /**
  * Return pointer to the music data file path.
  */
-auto find_music_data_bin_path(auto&& bm2dx) -> std::string_view
+auto find_music_data_bin_path(auto&& bm2dx)
 {
     return std::string_view { memory::find<const char*>(bm2dx,
         memory::to_pattern("/data/info/?/music_????.bin", '?')) };
@@ -490,15 +490,26 @@ auto iterate_mdb_entries(auto&& buffer)
 }
 
 /**
- * Read and parse a music data file from any supported version.
+ * Read the common header from a music data file.
  */
-auto parse_music_data_file(auto&& path)
+auto read_music_data_file(auto&& path)
 {
-    auto const buffer = avs2::file::read(path);
-    auto const header = reinterpret_cast<const bm2dx::mdb*>(buffer.data());
+    auto buffer = avs2::file::read(path);
+    auto const header = reinterpret_cast<const bm2dx::mdb_common*>(buffer.data());
 
     if (buffer.empty() || std::memcmp(header->magic, "IIDX", 4) != 0)
         throw error { "failed to read music data file '{}'", path };
+
+    return buffer;
+}
+
+/**
+ * Read and parse a music data file from any supported version.
+ */
+auto parse_music_data_entries(auto&& path)
+{
+    auto const buffer = read_music_data_file(path);
+    auto const header = reinterpret_cast<const bm2dx::mdb_common*>(buffer.data());
 
     if (bm2dx::mdb_v27::is_supported(header->version))
         return iterate_mdb_entries<bm2dx::mdb_v27>(buffer);
@@ -532,8 +543,8 @@ auto setup_song_banner_hook(auto&& bm2dx)
     path_original.at(11) = mdb_path.at(11);
     path_modified.at(11) = mdb_path.at(11);
 
-    auto [ver_original, mdb_original] = parse_music_data_file(path_original);
-    auto [ver_modified, mdb_modified] = parse_music_data_file(path_modified);
+    auto [ver_original, mdb_original] = parse_music_data_entries(path_original);
+    auto [ver_modified, mdb_modified] = parse_music_data_entries(path_modified);
 
     if (ver_original != ver_modified)
         throw error { "version mismatch between music data files" };

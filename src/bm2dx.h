@@ -2,7 +2,7 @@
 
 namespace bm2dx
 {
-    struct mdb
+    struct mdb_common
     {
         /* 0x0000 */ std::uint8_t magic[4];
         /* 0x0004 */ std::int32_t version;
