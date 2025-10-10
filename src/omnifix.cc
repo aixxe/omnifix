@@ -101,6 +101,23 @@ auto find_first_pattern(auto&& region, auto&& patterns) -> std::uint8_t*
 }
 
 /**
+ * Read an attribute from a node as an integer.
+ *
+ * @param node Node to read from.
+ * @param name Name of the attribute to read.
+ * @return Attribute value as an integer.
+ */
+auto attr2int(avs2::node_ptr node, std::string_view name)
+{
+    auto buffer = std::array<char, 32> {};
+
+    avs2::property_node_refer(nullptr, node, name.data(),
+        avs2::node_type_attr, buffer.data(), buffer.size());
+
+    return std::stoi(buffer.data());
+}
+
+/**
  * Return pointer to the music data file path.
  */
 auto find_music_data_bin_path(auto&& bm2dx) -> std::string_view
@@ -656,12 +673,7 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
 
         // Read out the player side so we can link it to an already calculated
         // hash value. Attributes are always read out as strings.
-        auto buffer = std::array<char, 8> {};
-
-        avs2::property_node_refer(nullptr, node, "rankside@",
-            avs2::node_type_attr, buffer.data(), buffer.size());
-
-        auto const side = std::stoi(buffer.data());
+        auto const side = attr2int(node, "rankside@");
 
         if (side == 0 || side == 1)
         {
