@@ -16,6 +16,8 @@
 using namespace omnifix;
 
 using hash_type = std::array<std::uint8_t, picosha2::k_digest_size>;
+using chart_hash_map_type = std::unordered_map<std::uint32_t, hash_type>;
+using music_hash_map_type = std::unordered_map<std::uint32_t, chart_hash_map_type>;
 
 auto constexpr expected_game_symbol = "dll_entry_main";
 auto constexpr music_data_buffer_size = std::uint32_t { 0x600000 };
@@ -653,27 +655,39 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
     auto music_reg_target = memory::find(bm2dx, "48 83 C0 ? 48 C7 44 24 28 00 03 00 00 48 89 44");
          music_reg_target = memory::rfind({ bm2dx.data(), music_reg_target }, "CC [48]");
 
-    // Chart buffer pointer to use as a reference.
-    auto static const chart_buffer_ptr = reinterpret_cast<void* (*) ()>
-        (memory::follow(memory::find(bm2dx, "E8 ? ? ? ? B9 ? ? ? ? C6 80"))) ();
-
-    // Static storage for hashes - one per player. We calculate these when the
-    // chart is loaded, then read them back when the score is submitted.
-    auto static hashes = std::array<hash_type, 2> {};
+    // Static storage for hashes, updated each time a new chart is loaded.
+    auto static hash_cache = music_hash_map_type {};
 
     auto static chart_load_hook = safetyhook::create_mid(chart_load_target,
         [] (SafetyHookContext& ctx) -> void
     {
-        // Player is determined by the buffer pointer. If it matches the one we
-        // scanned for earlier, it's for P1. Otherwise, assume it's for P2.
+        if (!(ctx.rbx & 0x1))
+            return;
+
+        // Music ID isn't available directly, but a pointer to the entry is.
+        // Before we can get to the index, we need to know which structure to use.
+        auto const index_offset = bm2dx::mdb_v27::is_supported(mdb_common.version) ?
+            bm2dx::mdb_v27::index_offset: bm2dx::mdb_v32::index_offset;
+
+        auto const music = *reinterpret_cast<std::uint32_t*>(ctx.r13 + index_offset);
+        auto const chart = static_cast<std::uint32_t>(ctx.rsi);
+
+        // Skip hashing if the entry already exists in the cache.
+        if (hash_cache.contains(music) && hash_cache[music].contains(chart))
+            return;
+
+        // If not, hash the entire buffer and store it in cache.
+        auto hash = hash_type {};
+
         auto const buffer = reinterpret_cast<std::uint8_t*>(ctx.rdi);
-        auto const player = buffer == chart_buffer_ptr ? 0: 1;
         auto const size = static_cast<std::uint32_t>(ctx.rax);
 
-        if (ctx.rbx & 0x1)
-            picosha2::hash256(buffer, buffer + size, hashes[player]);
-        else
-            std::ranges::fill(hashes[player], 0);
+        picosha2::hash256(buffer, buffer + size, hash);
+
+        avs2::log::misc("added chart hash '{}' for {}[{}] to cache",
+            picosha2::bytes_to_hex_string(hash), music, chart);
+
+        hash_cache[music][chart] = hash;
     });
 
     auto static music_reg_hook = safetyhook::InlineHook {};
@@ -681,22 +695,28 @@ auto setup_xrpc_music_reg_hook(auto&& bm2dx)
     music_reg_hook = safetyhook::create_inline(music_reg_target,
         +[] (void* a1, avs2::node_ptr node) -> bool
     {
+        // Call original method early to create the request property.
         auto const result = music_reg_hook.call<bool>(a1, node);
 
-        // Read out the player side so we can link it to an already calculated
-        // hash value. Attributes are always read out as strings.
-        auto const side = attr2int(node, "rankside@");
+        // Ensure an entry for this chart exists in the hash cache.
+        auto const music = attr2int(node, "mid@");
+        auto const chart = attr2int(node, "clid@");
 
-        if (side == 0 || side == 1)
+        if (!hash_cache.contains(music) || !hash_cache[music].contains(chart))
         {
-            auto const info = create_common_node(node);
-
-            avs2::property_node_create(nullptr, info, avs2::node_type_bin,
-                "chart_hash", hashes[side].data(), hashes[side].size());
-
-            avs2::log::misc("added chart hash '{}' to p{} music.reg request",
-                picosha2::bytes_to_hex_string(hashes[side]), side + 1);
+            avs2::log::warning("chart hash {}[{}] not found", music, chart);
+            return result;
         }
+
+        // Append version information & chart hash to request.
+        auto const info = create_common_node(node);
+        auto const& hash = hash_cache[music][chart];
+
+        avs2::property_node_create(nullptr, info, avs2::node_type_bin,
+            "chart_hash", hash.data(), hash.size());
+
+        avs2::log::misc("added chart hash '{}' to music.reg request",
+            picosha2::bytes_to_hex_string(hash));
 
         return result;
     });
