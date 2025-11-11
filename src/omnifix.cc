@@ -378,10 +378,24 @@ auto setup_chart_unlock_patch(auto&& bm2dx)
 {
     avs2::log::info("enabling chart unlock patch");
 
-    auto target = memory::find(bm2dx, "74 12 B0 01 48 8B 5C 24 40");
-         target = memory::find({ target, target + 0x100 }, "32 C0");
+    if (auto target = memory::find(bm2dx, "74 ? 44 8B C3 48 8B D5", true))
+    {
+        // New pattern for IIDX 33 (2025111100) and newer.
+        // Skip over the first conditional jump in the function.
+        add_patch(target, { 0x90, 0x90 });
 
-    add_patch(target, { 0xB0, 0x01 });
+        // The following jump goes straight to the 'unlocked' path, so we patch
+        // again to ensure the jump condition is always met.
+        auto jump = memory::find({ target, target + 0x100 }, "84 C0 0F");
+        add_patch(jump, { 0x0C, 0x01 });
+    }
+    else
+    {
+        target = memory::find(bm2dx, "74 12 B0 01 48 8B 5C 24 40");
+        target = memory::find({ target, target + 0x100 }, "32 C0");
+
+        add_patch(target, { 0xB0, 0x01 });
+    }
 }
 
 /**
