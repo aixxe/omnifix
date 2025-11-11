@@ -100,7 +100,7 @@ auto find_generic(auto&& method, auto&& region,
  * @param region The memory region to search, represented as a span of bytes.
  * @param pattern The pattern to search for, e.g. "AA BB ? DD".
  * @param silent If true, suppresses exceptions when the pattern is not found.
- * @return Pointer to the first byte if found, else `std::nullopt`.
+ * @return Pointer to the first byte if found, else `nullptr`.
  */
 auto memory::find(std::span<std::uint8_t> region,
     std::string_view pattern, const bool silent) -> std::uint8_t*
@@ -114,7 +114,7 @@ auto memory::find(std::span<std::uint8_t> region,
  * @param region The memory region to search, represented as a span of bytes.
  * @param pattern The pattern to search for, e.g. "AA BB ? DD".
  * @param silent If true, suppresses exceptions when the pattern is not found.
- * @return Pointer to the first byte if found, else `std::nullopt`.
+ * @return Pointer to the first byte if found, else `nullptr`.
  */
 auto memory::rfind(std::span<std::uint8_t> region,
     std::string_view pattern, const bool silent) -> std::uint8_t*
