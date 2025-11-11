@@ -41,8 +41,8 @@ auto add_patch(std::uint8_t* ptr, std::ranges::range auto bytes)
 
     for (auto i = 0u; i < bytes.size(); ++i)
     {
-        original += std::format("{:02x} ", *(bytes.begin() + i));
-        modified += std::format("{:02x} ", ptr[i]);
+        original += std::format("{:02x} ", ptr[i]);
+        modified += std::format("{:02x} ", *(bytes.begin() + i));
     }
 
     original.pop_back();

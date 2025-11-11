@@ -88,11 +88,11 @@ Set the log level to `misc` for even more detailed messages, e.g.
 
 ```
 [2025/09/09 23:14:18] M:omnifix: applying patch at 0x1805f389c (size: 1)
-[2025/09/09 23:14:18] M:omnifix:   - original: eb
-[2025/09/09 23:14:18] M:omnifix:   - modified: 75
+[2025/09/09 23:14:18] M:omnifix:   - original: 75
+[2025/09/09 23:14:18] M:omnifix:   - modified: eb
 [2025/09/09 23:14:18] M:omnifix: applying patch at 0x180878374 (size: 2)
-[2025/09/09 23:14:18] M:omnifix:   - original: 90 90
-[2025/09/09 23:14:18] M:omnifix:   - modified: 74 25
+[2025/09/09 23:14:18] M:omnifix:   - original: 74 25
+[2025/09/09 23:14:18] M:omnifix:   - modified: 90 90
 ```
 
 ## Options
