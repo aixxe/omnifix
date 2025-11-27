@@ -24,6 +24,8 @@ auto constexpr music_data_buffer_size = std::uint32_t { 0x600000 };
 
 auto mdb_path = std::string_view {};
 auto mdb_common = bm2dx::mdb_common {};
+
+auto override_mdb_path = std::string {};
 auto override_revision_code = std::uint8_t { 'X' };
 
 auto patches = std::vector<memory::patch> {};
@@ -59,6 +61,12 @@ auto add_patch(std::uint8_t* ptr, std::ranges::range auto bytes)
 
 auto add_patch(std::uint8_t* ptr, std::initializer_list<std::uint8_t>&& bytes)
     { return add_patch(ptr, std::span { bytes }); }
+
+auto add_patch(std::string_view str, auto&& bytes)
+{
+    return add_patch(reinterpret_cast<std::uint8_t*>
+        (const_cast<char*>(str.data())), bytes);
+}
 
 /**
  * Helper method to create a node and populate common properties.
@@ -125,8 +133,17 @@ auto attr2int(avs2::node_ptr node, std::string_view name)
  */
 auto find_music_data_bin_path(auto&& bm2dx)
 {
-    return std::string_view { memory::find<const char*>(bm2dx,
+    auto const result = std::string_view { memory::find<const char*>(bm2dx,
         memory::to_pattern("/data/info/?/music_????.bin", '?')) };
+
+    // Use the original path to construct the default altered one.
+    // May be altered later by the `--omnifix-music-data=` option.
+    auto constexpr offset = 19;
+
+    override_mdb_path = result;
+    override_mdb_path.replace(offset, 4, "omni");
+
+    return result;
 }
 
 /**
@@ -148,17 +165,12 @@ auto patch_mdata_ifs_path(auto ptr)
 /**
  * Alter the path to the music database.
  */
-auto patch_music_data_bin_path(auto ptr)
+auto patch_music_data_bin_path()
 {
-    auto constexpr offset = 19;
-    auto path = std::string { reinterpret_cast<const char*>(ptr) };
+    if (!avs2::file::exists(override_mdb_path))
+        throw error { "required file '{}' not found", override_mdb_path };
 
-    path.replace(offset, 4, "omni");
-
-    if (!avs2::file::exists(path))
-        throw error { "required file '{}' not found", path };
-
-    add_patch(ptr + offset, { 'o', 'm', 'n', 'i' });
+    add_patch(mdb_path, override_mdb_path);
 }
 
 /**
@@ -251,8 +263,7 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
         // This isn't an issue for older styles, so just search for the path.
         patch_mdata_ifs_path(memory::find(bm2dx, memory::to_pattern("/?/mdat?.ifs", '?')));
 
-    patch_music_data_bin_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?/music_????.bin", '?')));
+    patch_music_data_bin_path();
 
     // Optional files for LIGHTNING MODEL features.
     patch_music_title_xml_path(memory::find(bm2dx,
@@ -553,16 +564,9 @@ auto setup_song_banner_hook(auto&& bm2dx)
     // Color Omnimix charts using the "listb_lightning" bar texture.
     auto constexpr omnimix_bar_style = 2;
 
-    // Build paths to both original and modified music data files.
-    auto path_original = std::string { "/data/info/#/music_data.bin" };
-    auto path_modified = std::string { "/data/info/#/music_omni.bin" };
-
-    // Set the `0` or `1` in each path, which alternates each style.
-    path_original.at(11) = mdb_path.at(11);
-    path_modified.at(11) = mdb_path.at(11);
-
-    auto [ver_original, mdb_original] = parse_music_data_entries(path_original);
-    auto [ver_modified, mdb_modified] = parse_music_data_entries(path_modified);
+    // Parse both original and modified music data files.
+    auto [ver_original, mdb_original] = parse_music_data_entries(mdb_path);
+    auto [ver_modified, mdb_modified] = parse_music_data_entries(override_mdb_path);
 
     if (ver_original != ver_modified)
         throw error { "version mismatch between music data files" };
@@ -789,6 +793,16 @@ auto init(std::uint8_t* module) -> int
     mdb_path = find_music_data_bin_path(region);
     mdb_common = *reinterpret_cast<bm2dx::mdb_common*>
         (read_music_data_file(mdb_path).data());
+
+    if (options.contains("omnifix-music-data"))
+    {
+        auto const& path = options.at("omnifix-music-data");
+
+        if (!path.empty() && path.size() < 28)
+            override_mdb_path = path;
+        else
+            avs2::log::warning("invalid path to custom music data file");
+    }
 
     if (options.contains("omnifix-revision-code"))
     {

@@ -120,6 +120,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-revision-code=X`
 > Replaces the default `X` revision code with a custom one. Single character only
 
+> ##### `--omnifix-music-data=/data/info/X/music_omni.bin`
+> Use a custom path for the override `music_data.bin` file. Maximum 27 characters
+
 ## Network validation
 
 By default, omnifix will append additional metadata to the initial services request and new score submissions
