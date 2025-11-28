@@ -808,17 +808,17 @@ auto init(std::uint8_t* module) -> int
 
         auto const& path = options.at(option);
 
-        if (!path.empty() && path.size() <= maxlen)
-            output = path;
+        if (path.size() > maxlen)
+            avs2::log::warning("path '{}' exceeds length {} for option '{}'", path, maxlen, option);
         else
-            avs2::log::warning("invalid path '{}' for option '{}'", path, option);
+            output = path;
     }
 
     if (options.contains("omnifix-revision-code"))
     {
         auto const& revision = options.at("omnifix-revision-code");
 
-        if (!revision.empty() && revision[0] >= 'A' && revision[0] <= 'Z')
+        if (revision[0] >= 'A' && revision[0] <= 'Z')
             override_revision_code = revision[0];
         else
             avs2::log::warning("invalid override revision code");

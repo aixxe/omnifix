@@ -70,7 +70,7 @@ auto modules::argv() -> parsed_argv
 
         if (value == std::string_view::npos)
             flags[arg] = true;
-        else
+        else if (value < arg.size() - 1)
             options[arg.substr(0, value)] = arg.substr(value + 1);
     }
 
