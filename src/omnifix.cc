@@ -22,12 +22,21 @@ using music_hash_map_type = std::unordered_map<std::uint32_t, chart_hash_map_typ
 auto constexpr expected_game_symbol = "dll_entry_main";
 auto constexpr music_data_buffer_size = std::uint32_t { 0x600000 };
 
-auto mdb_path = std::string_view {};
-auto mdb_common = bm2dx::mdb_common {};
+auto constexpr mdb_path_max_length = 27;
+auto constexpr mdata_ifs_path_max_length = 12;
+auto constexpr music_title_xml_path_max_length = 34;
+auto constexpr music_artist_xml_path_max_length = 35;
+auto constexpr video_music_list_xml_path_max_length = 34;
 
 auto override_mdb_path = std::string {};
 auto override_mdata_ifs_path = std::string {};
+auto override_music_title_xml_path = std::string {};
+auto override_music_artist_xml_path = std::string {};
+auto override_video_music_list_xml_path = std::string {};
 auto override_revision_code = std::uint8_t { 'X' };
+
+auto mdb_path = std::string_view {};
+auto mdb_common = bm2dx::mdb_common {};
 
 auto patches = std::vector<memory::patch> {};
 
@@ -190,60 +199,26 @@ auto patch_music_data_bin_path()
 }
 
 /**
- * Alter the subscreen music title XML path.
+ * Alter various LIGHTNING MODEL subscreen XML paths.
  */
-auto patch_music_title_xml_path(auto ptr)
+auto patch_xml_path(std::string_view name, auto ptr, const std::size_t offset,
+    std::string& output, const std::size_t maxlen)
 {
     if (!ptr)
-        return avs2::log::warning("music title XML path not found");
+        return avs2::log::warning("{} xml path not found", name);
 
-    auto constexpr offset = 26;
-    auto path = std::string { reinterpret_cast<const char*>(ptr) };
+    auto const target = std::string_view { reinterpret_cast<const char*>(ptr) };
 
-    path.replace(offset, 4, "omni");
+    if (output.empty())
+    {
+        output = target;
+        output.replace(offset, 4, "omni");
+    }
 
-    if (!avs2::file::exists(path))
-        return avs2::log::warning("optional file '{}' not found", path);
+    if (!avs2::file::exists(output))
+        return avs2::log::warning("optional file '{}' not found", output);
 
-    add_patch(ptr + offset, { 'o', 'm', 'n', 'i' });
-}
-
-/**
- * Alter the subscreen music artist XML path.
- */
-auto patch_music_artist_xml_path(auto ptr)
-{
-    if (!ptr)
-        return avs2::log::warning("music artist XML path not found");
-
-    auto constexpr offset = 27;
-    auto path = std::string { reinterpret_cast<const char*>(ptr) };
-
-    path.replace(offset, 4, "omni");
-
-    if (!avs2::file::exists(path))
-        return avs2::log::warning("optional file '{}' not found", path);
-
-    add_patch(ptr + offset, { 'o', 'm', 'n', 'i' });
-}
-
-/**
- * Alter the video music list XML path.
- */
-auto patch_video_music_list_xml_path(auto ptr)
-{
-    if (!ptr)
-        return avs2::log::warning("video music list XML path not found");
-
-    auto constexpr offset = 25;
-    auto path = std::string { reinterpret_cast<const char*>(ptr) };
-
-    path.replace(offset, 4, "omni");
-
-    if (!avs2::file::exists(path))
-        return avs2::log::warning("optional file '{}' not found", path);
-
-    add_patch(ptr + offset, { 'o', 'm', 'n', 'i' });
+    add_patch(target, output, maxlen);
 }
 
 /**
@@ -282,14 +257,17 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
     patch_music_data_bin_path();
 
     // Optional files for LIGHTNING MODEL features.
-    patch_music_title_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?//music_title_", '?'), true));
+    patch_xml_path("music title", memory::find(bm2dx,
+        memory::to_pattern("/data/info/?//music_title_", '?'), true),
+        26, override_music_title_xml_path, music_title_xml_path_max_length);
 
-    patch_music_artist_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?//music_artist_", '?'), true));
+    patch_xml_path("music artist", memory::find(bm2dx,
+        memory::to_pattern("/data/info/?//music_artist_", '?'), true),
+        27, override_music_artist_xml_path, music_artist_xml_path_max_length);
 
-    patch_video_music_list_xml_path(memory::find(bm2dx,
-        memory::to_pattern("/data/info/?/video_music_", '?'), true));
+    patch_xml_path("video music list", memory::find(bm2dx,
+        memory::to_pattern("/data/info/?/video_music_", '?'), true),
+        25, override_video_music_list_xml_path, video_music_list_xml_path_max_length);
 
     // More optional stuff for IIDX 32+
     patch_thumbnail_file_path(bm2dx);
@@ -816,8 +794,11 @@ auto init(std::uint8_t* module) -> int
         <std::string, std::string&, std::size_t>;
 
     auto const path_options = std::vector<path_options_type> {
-        { "omnifix-music-data",    override_mdb_path,       27 },
-        { "omnifix-graphics-data", override_mdata_ifs_path, 12 },
+        { "omnifix-music-data", override_mdb_path, mdb_path_max_length },
+        { "omnifix-graphics-data", override_mdata_ifs_path, mdata_ifs_path_max_length },
+        { "omnifix-music-title-xml", override_music_title_xml_path, music_title_xml_path_max_length },
+        { "omnifix-music-artist-xml", override_music_artist_xml_path, music_artist_xml_path_max_length },
+        { "omnifix-video-music-list-xml", override_video_music_list_xml_path, video_music_list_xml_path_max_length },
     };
 
     for (auto&& [option, output, maxlen]: path_options)
