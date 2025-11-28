@@ -26,6 +26,7 @@ auto mdb_path = std::string_view {};
 auto mdb_common = bm2dx::mdb_common {};
 
 auto override_mdb_path = std::string {};
+auto override_mdata_ifs_path = std::string {};
 auto override_revision_code = std::uint8_t { 'X' };
 
 auto patches = std::vector<memory::patch> {};
@@ -160,15 +161,21 @@ auto find_music_data_bin_path(auto&& bm2dx)
  */
 auto patch_mdata_ifs_path(auto ptr)
 {
+    // Change 'mdata.ifs' to 'mdato.ifs' for custom music select graphics.
+    // Path can be altered by the `--omnifix-graphics-data=` option.
+    auto const target = std::string_view { reinterpret_cast<const char*>(ptr) };
     auto constexpr offset = 7;
-    auto path = std::string { reinterpret_cast<const char*>(ptr) };
 
-    path[offset] = 'o';
+    if (override_mdata_ifs_path.empty())
+    {
+        override_mdata_ifs_path = target;
+        override_mdata_ifs_path[offset] = 'o';
+    }
 
-    if (!avs2::file::exists("/data/graphic" + path))
-        throw error { "required file '/data/graphic{}' not found", path };
+    if (!avs2::file::exists("/data/graphic" + override_mdata_ifs_path))
+        throw error { "required file '/data/graphic{}' not found", override_mdata_ifs_path };
 
-    add_patch(ptr + offset, { 'o' });
+    add_patch(target, override_mdata_ifs_path, 12);
 }
 
 /**
@@ -803,14 +810,27 @@ auto init(std::uint8_t* module) -> int
     mdb_common = *reinterpret_cast<bm2dx::mdb_common*>
         (read_music_data_file(mdb_path).data());
 
-    if (options.contains("omnifix-music-data"))
-    {
-        auto const& path = options.at("omnifix-music-data");
+    // Handle all the various path-like options.
+    // Format: command-line option name, output variable, maximum length.
+    using path_options_type = std::tuple
+        <std::string, std::string&, std::size_t>;
 
-        if (!path.empty() && path.size() < 28)
-            override_mdb_path = path;
+    auto const path_options = std::vector<path_options_type> {
+        { "omnifix-music-data",    override_mdb_path,       27 },
+        { "omnifix-graphics-data", override_mdata_ifs_path, 12 },
+    };
+
+    for (auto&& [option, output, maxlen]: path_options)
+    {
+        if (!options.contains(option))
+            continue;
+
+        auto const& path = options.at(option);
+
+        if (!path.empty() && path.size() <= maxlen)
+            output = path;
         else
-            avs2::log::warning("invalid path to custom music data file");
+            avs2::log::warning("invalid path '{}' for option '{}'", path, option);
     }
 
     if (options.contains("omnifix-revision-code"))
