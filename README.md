@@ -120,11 +120,20 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-revision-code=X`
 > Replaces the default `X` revision code with a custom one. Single character only
 
+> ##### `--omnifix-music-data=/data/info/X/music_omni.bin`
+> Use a custom path for the override `music_data.bin` file. Maximum 27 characters
+
 > ##### `--omnifix-graphics-data=/X/mdato.ifs`
 > Use a custom path for the override `mdata.ifs` file. Maximum 12 characters
 
-> ##### `--omnifix-music-data=/data/info/X/music_omni.bin`
-> Use a custom path for the override `music_data.bin` file. Maximum 27 characters
+> ##### `--omnifix-music-title-xml=/data/info/X//music_title_omni.xml`
+> Use a custom path for the override `music_title_yomi.xml` file. Maximum 34 characters
+
+> ##### `--omnifix-music-artist-xml=/data/info/X//music_artist_omni.xml`
+> Use a custom path for the override `music_artist_yomi.xml` file. Maximum 35 characters
+
+> ##### `--omnifix-video-music-list-xml=/data/info/X//video_music_list.xml`
+> Use a custom path for the override `video_music_list.xml` file. Maximum 34 characters
 
 ## Network validation
 
