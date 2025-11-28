@@ -62,10 +62,19 @@ auto add_patch(std::uint8_t* ptr, std::ranges::range auto bytes)
 auto add_patch(std::uint8_t* ptr, std::initializer_list<std::uint8_t>&& bytes)
     { return add_patch(ptr, std::span { bytes }); }
 
-auto add_patch(std::string_view str, auto&& bytes)
+auto add_patch(std::string_view str, auto&& bytes, std::size_t length = 0)
 {
-    return add_patch(reinterpret_cast<std::uint8_t*>
-        (const_cast<char*>(str.data())), bytes);
+    auto const ptr = reinterpret_cast<std::uint8_t*>
+        (const_cast<char*>(str.data()));
+
+    if (length > 0 && bytes.size() < length)
+    {
+        auto padded = std::vector<std::uint8_t>(length, 0);
+        std::ranges::copy(bytes, padded.begin());
+        return add_patch(ptr, padded);
+    }
+
+    return add_patch(ptr, bytes);
 }
 
 /**
@@ -170,7 +179,7 @@ auto patch_music_data_bin_path()
     if (!avs2::file::exists(override_mdb_path))
         throw error { "required file '{}' not found", override_mdb_path };
 
-    add_patch(mdb_path, override_mdb_path);
+    add_patch(mdb_path, override_mdb_path, 27);
 }
 
 /**
