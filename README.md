@@ -123,6 +123,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-music-data=/data/info/X/music_omni.bin`
 > Use a custom path for the override `music_data.bin` file. Maximum 27 characters
 
+> ##### `--omnifix-course-data=/data/info/X/class_course_data.bin`
+> Use a custom path for the `class_course_data.bin` file. Maximum 34 characters
+
 > ##### `--omnifix-graphics-data=/X/mdato.ifs`
 > Use a custom path for the override `mdata.ifs` file. Maximum 12 characters
 

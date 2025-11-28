@@ -23,12 +23,14 @@ auto constexpr expected_game_symbol = "dll_entry_main";
 auto constexpr music_data_buffer_size = std::uint32_t { 0x600000 };
 
 auto constexpr mdb_path_max_length = 27;
+auto constexpr course_path_max_length = 34;
 auto constexpr mdata_ifs_path_max_length = 12;
 auto constexpr music_title_xml_path_max_length = 34;
 auto constexpr music_artist_xml_path_max_length = 35;
 auto constexpr video_music_list_xml_path_max_length = 34;
 
 auto override_mdb_path = std::string {};
+auto override_course_path = std::string {};
 auto override_mdata_ifs_path = std::string {};
 auto override_music_title_xml_path = std::string {};
 auto override_music_artist_xml_path = std::string {};
@@ -239,6 +241,20 @@ auto patch_thumbnail_file_path(auto&& bm2dx)
 }
 
 /**
+ * Alter the path to the class course data file.
+ */
+auto patch_course_data_file_path(auto&& bm2dx)
+{
+    auto ptr = memory::find<const char*>(bm2dx,
+        memory::to_pattern("/data/info/?/class_course_", '?'));
+
+    if (!avs2::file::exists(override_course_path))
+        throw error { "required file '{}' not found", override_course_path };
+
+    add_patch(ptr, override_course_path, course_path_max_length);
+}
+
+/**
  * Find and alter paths to point to custom files.
  */
 auto setup_omnimix_path_patch(auto&& bm2dx)
@@ -268,6 +284,10 @@ auto setup_omnimix_path_patch(auto&& bm2dx)
     patch_xml_path("video music list", memory::find(bm2dx,
         memory::to_pattern("/data/info/?/video_music_", '?'), true),
         25, override_video_music_list_xml_path, video_music_list_xml_path_max_length);
+
+    // If a custom course file was set, patch it.
+    if (!override_course_path.empty())
+        patch_course_data_file_path(bm2dx);
 
     // More optional stuff for IIDX 32+
     patch_thumbnail_file_path(bm2dx);
@@ -795,6 +815,7 @@ auto init(std::uint8_t* module) -> int
 
     auto const path_options = std::vector<path_options_type> {
         { "omnifix-music-data", override_mdb_path, mdb_path_max_length },
+        { "omnifix-course-data", override_course_path, course_path_max_length },
         { "omnifix-graphics-data", override_mdata_ifs_path, mdata_ifs_path_max_length },
         { "omnifix-music-title-xml", override_music_title_xml_path, music_title_xml_path_max_length },
         { "omnifix-music-artist-xml", override_music_artist_xml_path, music_artist_xml_path_max_length },
