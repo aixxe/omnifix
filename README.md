@@ -117,6 +117,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-enable-banner-hook`
 > Display Omnimix exclusive charts with a distinct banner color in music select
 
+> ##### `--omnifix-banner-exclusive`
+> When enabled, song banners will exclusively be used to indicate Omnimix charts.
+
 > ##### `--omnifix-revision-code=X`
 > Replaces the default `X` revision code with a custom one. Single character only
 
