@@ -564,7 +564,7 @@ auto parse_music_data_entries(auto&& path)
 /**
  * Display Omnimix charts using a distinct song bar texture.
  */
-auto setup_song_banner_hook(auto&& bm2dx)
+auto setup_song_banner_hook(auto&& bm2dx, const bool exclusive)
 {
     avs2::log::info("enabling song banner hook");
 
@@ -594,6 +594,7 @@ auto setup_song_banner_hook(auto&& bm2dx)
                 unique[index][i] = ratings[i] > 0;
 
     // Set up some version-specific context for the hook.
+    auto static const is_exclusive = exclusive;
     auto static const index_offset = bm2dx::mdb_v27::is_supported(ver_original) ?
         bm2dx::mdb_v27::index_offset: bm2dx::mdb_v32::index_offset;
 
@@ -609,8 +610,9 @@ auto setup_song_banner_hook(auto&& bm2dx)
         auto const charts = std::span { reinterpret_cast<int*>(bar + 0x20), 5 };
 
         // Reset anything using our designated bar style to default.
+        // If 'banner exclusive' option is set, reset everything to default.
         std::ranges::transform(charts, charts.begin(),
-            [] (auto&& v) { return v == omnimix_bar_style ? 0: v; });
+            [] (auto&& v) { return is_exclusive || v == omnimix_bar_style ? 0: v; });
 
         // Check if the music entry for this bar is in the unique map.
         // If so, it is either an entirely unique song, or has unique charts.
@@ -869,7 +871,7 @@ auto init(std::uint8_t* module) -> int
         setup_clear_rate_hook(region);
 
     if (flags.contains("omnifix-enable-banner-hook"))
-        setup_song_banner_hook(region);
+        setup_song_banner_hook(region, flags.contains("omnifix-banner-exclusive"));
 
     for (auto&& patch: patches)
         patch.enable();
