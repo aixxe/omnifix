@@ -570,8 +570,8 @@ auto setup_song_banner_hook(auto&& bm2dx, const bool exclusive)
 
     // Find a function that sets up category bars during music select init.
     auto const target = find_first_pattern(bm2dx, std::array {
+        /* IIDX 28+ */ "4C 8B DC 49 89 53 ? ? 41 56",
         /* IIDX 33  */ "48 89 5C 24 ? 48 89 6C 24 ? 48 89 54 24",
-        /* IIDX 28+ */ "4C 8B DC 49 89 53 ? 55",
         /* IIDX 27  */ "48 89 5C 24 ? 48 89 6C 24 ? 48 89 7C 24 ? 41 54 41 56 41 57 48 83 EC ? 8B 44 24",
     });
 
