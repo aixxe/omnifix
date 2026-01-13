@@ -403,7 +403,7 @@ auto setup_chart_unlock_patch(auto&& bm2dx)
 {
     avs2::log::info("enabling chart unlock patch");
 
-    if (auto target = memory::find(bm2dx, "74 ? 44 8B C3 48 8B D5", true))
+    if (auto target = memory::find(bm2dx, "74 ? 44 8B C3 48 8B ? 49", true))
     {
         // New pattern for IIDX 33 (2025111100) and newer.
         // Skip over the first conditional jump in the function.
