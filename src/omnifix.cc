@@ -635,6 +635,36 @@ auto setup_song_banner_hook(auto&& bm2dx, const bool exclusive)
 }
 
 /**
+ * Allow large XRPC responses to fit in the property parsing buffer.
+ */
+auto setup_xrpc_response_buffer_patch(auto&& bm2dx)
+{
+    avs2::log::info("enabling xrpc response buffer patches");
+
+    auto targets = std::vector<std::uint8_t*> {};
+
+    for (auto const pattern: std::array {
+        /* IIDX 29+   */ "48 8D 15 ? ? ? ? B9 [00] 00 40 00 FF 15 ? ? ? ?",
+        /* IIDX 27-28 */ "48 8D 15 ? ? ? ? B9 [00] 00 20 00 FF 15 ? ? ? ?",
+    })
+    {
+        auto region = bm2dx;
+
+        while (auto target = memory::find(region, pattern, true))
+        {
+            targets.push_back(target);
+            region = region.subspan(target + 4 - region.data());
+        }
+    }
+
+    if (targets.size() != 2)
+        throw error { "expected 2 xrpc response buffers, found {}", targets.size() };
+
+    for (auto const target: targets)
+        add_patch(target, { 0x00, 0x00, 0x00, 0x01 });
+}
+
+/**
  * Reports version information to the server on boot.
  */
 auto setup_xrpc_services_get_hook()
@@ -860,6 +890,9 @@ auto init(std::uint8_t* module) -> int
 
     if (!flags.contains("omnifix-disable-boot-text"))
         setup_boot_text_hook(region);
+
+    if (!flags.contains("omnifix-disable-xrpc-response-buffer"))
+        setup_xrpc_response_buffer_patch(region);
 
     if (!flags.contains("omnifix-disable-xrpc-meta"))
     {

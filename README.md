@@ -108,6 +108,9 @@ Some functionality can be controlled through command-line options:
 > ##### `--omnifix-disable-xrpc-meta`
 > Prevent omnifix version information and music chart hashes from being added to outgoing requests
 
+> ##### `--omnifix-disable-xrpc-response-buffer`
+> Uses default XRPC response buffer size, which may fail to load on especially large network responses
+
 > ##### `--omnifix-enable-unlock-all`
 > Enables the 'Unlock All Songs and Charts' patch. **Not recommended when playing online**
 
