@@ -345,11 +345,17 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     auto base = memory::find(bm2dx, "79 ? BB ? ? ? ? EB ? E8");
 
     // Jump ahead to a call that returns the static buffer for the file.
-    auto const buffer = reinterpret_cast<void**>(memory::follow(memory::follow
-        (memory::find({ base, base + 0x100 }, "BB 32 00 00 00 EB ? [E8]"))));
+    auto const region = std::span { base, base + 0x100 };
+    auto const call = find_first_pattern(region, std::array {
+        /* IIDX 34  */ "BB 05 00 00 00 EB ? [E8]",
+        /* IIDX 27+ */ "BB 32 00 00 00 EB ? [E8]",
+    });
+
+    auto const buffer = reinterpret_cast<void**>
+        (memory::follow(memory::follow(call)));
 
     // Patch out a check that fails if the custom database has too many songs.
-    base = memory::find({ base, base + 0x100 }, "E8 ? ? ? ? 48 8B C8");
+    base = memory::find(region, "E8 ? ? ? ? 48 8B C8");
     add_patch(base - 2, { 0x90, 0x90 });
 
     // Patch another check that fails if the file on disk is too large.
@@ -386,9 +392,14 @@ auto setup_music_data_buffer_patch(auto&& bm2dx)
     target = memory::find({ target, target + 0x100 }, "48 [?] 05");
     add_patch(target, { 0x8B });
 
-    target = memory::find(bm2dx, "E8 ? ? ? ? 48 85 C0 B9");
-    target = memory::follow(target);
-    target = memory::find({ target, target + 0x100 }, "48 [?] 0D");
+    target = memory::find(bm2dx, "39 58 0C 76 ? 48 [?] 0D ? ? ? ? 8B 0C 99 E8", true);
+
+    if (!target)
+    {
+        target = memory::find(bm2dx, "E8 ? ? ? ? 48 85 C0 B9");
+        target = memory::follow(target);
+        target = memory::find({ target, target + 0x100 }, "48 [?] 0D");
+    }
     add_patch(target, { 0x8B });
 
     target = memory::find(bm2dx, "E8 ? ? ? ? 85 DB 78");
@@ -442,6 +453,12 @@ auto setup_clear_rate_hook(auto&& bm2dx)
     auto crate_recv_fn = memory::find(bm2dx,
         "C7 44 24 ? ? ? ? ? C7 44 24 ? ? ? ? ? C7 44 24 ? ? ? ? ? EB ? 8B 44 24");
 
+    // Get stack offsets for the values we need to read inside the hook.
+    auto static const id_offset = *memory::rfind
+        ({ crate_recv_fn - 0x100, crate_recv_fn }, "48 8D 44 24 [?] 48 89 44 24 20");
+    auto static const data_offset = *memory::rfind<std::int32_t*>
+        ({ crate_recv_fn - 0x100, crate_recv_fn }, "41 B8 50 00 00 00 48 8D 94 24 [?] ? ? ?");
+
     // Functions to get rate data for a specific music ID and difficulty.
     auto clear_rate_fn = memory::find(bm2dx, "E8 ? ? ? ? 85 C0 8B 44 24");
     auto fc_rate_fn = memory::find(bm2dx, "E8 ? ? ? ? EB ? 41 8B 89");
@@ -455,8 +472,8 @@ auto setup_clear_rate_hook(auto&& bm2dx)
         // Copy all data we received from the response. The game only stores a
         // fixed amount of these, but that check happens a bit later, so we're
         // guaranteed to read everything when we hook here.
-        auto const id = *reinterpret_cast<std::uint32_t*>(ctx.rsp + 0x40);
-        auto const data = reinterpret_cast<std::int32_t*>(ctx.rsp + 0x80);
+        auto const id = *reinterpret_cast<std::uint32_t*>(ctx.rsp + id_offset);
+        auto const data = reinterpret_cast<std::int32_t*>(ctx.rsp + data_offset);
 
         std::copy_n(data, item_count, rates[id].begin());
     });
